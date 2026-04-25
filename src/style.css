@@ -131,11 +131,13 @@ body {
   font-family: var(--font);
   font-weight: 300;
   font-size: clamp(4rem, 14vw, 11rem);
-  /* line-height 1 keeps the descender INSIDE the line box, so the next
-     line never collides with the tail of "p"/"y" no matter the font size. */
   line-height: 1;
   letter-spacing: -0.04em;
   margin: 0;
+  /* Reserve descender room below the baseline so the next line never
+     collides with the tail of "p"/"y" — IBM Plex Mono's descender extends
+     past the line-box at line-height: 1. */
+  padding-bottom: 0.22em;
   text-transform: lowercase;
   text-shadow: 0 0 32px rgba(0, 0, 0, 0.55);
 }
