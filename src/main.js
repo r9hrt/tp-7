@@ -417,6 +417,115 @@ function endDrag(e) {
 canvas.addEventListener("pointerup", endDrag);
 canvas.addEventListener("pointercancel", endDrag);
 
+// ── Device interactions ─────────────────────────────────
+// In explore mode, a click on the canvas fires a raycast against the device.
+// If the hit mesh is part of one of the three transport buttons at the bottom
+// of the device, we play a short press animation (translate the button down
+// then bounce back) and route the press to the audio engine. Mesh names below
+// were identified by inspecting the loaded GLB at runtime — record/play/stop
+// each consist of a base + cap mesh that move together.
+const BUTTON_GROUPS = {
+  rec: { meshes: ["Cube002", "Cube009", "Plane005"], action: "rec" },
+  play: { meshes: ["Cube003", "Cube010"], action: "play" },
+  stop: { meshes: ["Cube004", "Cube011"], action: "stop" },
+};
+const PRESS_DEPTH = 0.012;
+const PRESS_DOWN_MS = 80;
+const PRESS_UP_MS = 180;
+
+function buttonGroupForMesh(name) {
+  for (const [key, group] of Object.entries(BUTTON_GROUPS)) {
+    if (group.meshes.includes(name)) return key;
+  }
+  return null;
+}
+
+function meshesForGroup(key) {
+  if (!model) return [];
+  const names = BUTTON_GROUPS[key].meshes;
+  const out = [];
+  model.traverse((o) => {
+    if (o.isMesh && names.includes(o.name)) out.push(o);
+  });
+  return out;
+}
+
+function pressButton(key) {
+  const meshes = meshesForGroup(key);
+  if (meshes.length === 0) return;
+  // Cache the resting Y position once per mesh so repeated presses always
+  // animate from the same baseline regardless of in-flight animations.
+  meshes.forEach((m) => {
+    if (m.userData.baseY === undefined) m.userData.baseY = m.position.y;
+  });
+  const start = performance.now();
+  const total = PRESS_DOWN_MS + PRESS_UP_MS;
+  // Local -Y on the model after the pivot's x=π/2 rotation maps to world -Z,
+  // i.e. INTO the device — exactly the press direction we want.
+  function step(now) {
+    const t = now - start;
+    let offset;
+    if (t >= total) {
+      offset = 0;
+    } else if (t < PRESS_DOWN_MS) {
+      offset = -PRESS_DEPTH * (t / PRESS_DOWN_MS);
+    } else {
+      const u = (t - PRESS_DOWN_MS) / PRESS_UP_MS;
+      offset = -PRESS_DEPTH * (1 - u * u);
+    }
+    meshes.forEach((m) => (m.position.y = m.userData.baseY + offset));
+    if (t < total) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function setAudio(on) {
+  if (on === audioOn) return;
+  if (on) pad.start();
+  else pad.stop();
+  audioOn = on;
+  audioBtn.setAttribute("aria-pressed", audioOn ? "true" : "false");
+  audioBtn.querySelector(".audio-toggle__label").textContent = audioOn
+    ? "SOUND ON"
+    : "SOUND OFF";
+}
+
+function handleButtonAction(key) {
+  const action = BUTTON_GROUPS[key].action;
+  if (action === "rec" || action === "play") setAudio(true);
+  else if (action === "stop") setAudio(false);
+}
+
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+let pointerDownAt = { x: 0, y: 0, t: 0 };
+
+canvas.addEventListener("pointerdown", (e) => {
+  pointerDownAt = { x: e.clientX, y: e.clientY, t: performance.now() };
+});
+
+canvas.addEventListener("pointerup", (e) => {
+  if (!interactiveMode || !model) return;
+  const dx = e.clientX - pointerDownAt.x;
+  const dy = e.clientY - pointerDownAt.y;
+  const dt = performance.now() - pointerDownAt.t;
+  // Treat as a click only if the pointer barely moved AND the press was brief
+  // — anything bigger is interpreted as a rotate drag and ignored.
+  if (Math.hypot(dx, dy) > 6 || dt > 350) return;
+
+  const rect = canvas.getBoundingClientRect();
+  ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(ndc, camera);
+  const hits = raycaster.intersectObject(model, true);
+  if (hits.length === 0) return;
+
+  const key = buttonGroupForMesh(hits[0].object.name);
+  if (!key) return;
+  pressButton(key);
+  handleButtonAction(key);
+});
+
 audioBtn.addEventListener("click", async () => {
   if (!audioOn) {
     await pad.start();
