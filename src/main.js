@@ -63,6 +63,29 @@ const modelGroup = new THREE.Group();
 scene.add(modelGroup);
 
 let model = null;
+// reelGroup is a Group placed at the disc center on model-load. The reel
+// meshes are reparented (via attach) under it so a single rotation on the
+// group spins them all in place — without it, each mesh rotates around its
+// own pivot which sits off-center, flinging them out into the scene.
+let reelGroup = null;
+// Includes both the cylinder bodies AND the decal planes layered on the reel
+// face — without the decals, the cylinders spin invisibly (gray on gray) and
+// you can't tell the reel is moving.
+const REEL_MESH_NAMES = [
+  "Cylinder001",
+  "Cylinder007",
+  "Cylinder008",
+  "Cylinder011",
+  "Cylinder011_1",
+  "Plane",
+  "Plane001",
+  "Plane002",
+  "Plane003",
+  "Plane004",
+  "Plane011",
+];
+const REEL_IDLE_SPEED = 0.004;
+const REEL_PLAY_SPEED = 0.045;
 
 // ── Theme ───────────────────────────────────────────────
 // Dark mode tints the white body toward warm graphite (so it sits in a black
@@ -174,6 +197,28 @@ gltfLoader.load(
     });
 
     applyTheme(currentTheme);
+
+    // Build the reel pivot. Compute the visual disc center from the combined
+    // world bounds, drop a Group at that point under `model`, then `attach`
+    // each reel mesh so its world transform is preserved while its parent
+    // becomes the new pivot. Subsequent reelGroup.rotation.y spins them all
+    // around the disc face normal (model local Y → world +Z after pivot's
+    // x=π/2 rotation).
+    pivot.updateMatrixWorld(true);
+    const reelMeshes = [];
+    model.traverse((o) => {
+      if (o.isMesh && REEL_MESH_NAMES.includes(o.name)) reelMeshes.push(o);
+    });
+    if (reelMeshes.length > 0) {
+      const box = new THREE.Box3();
+      reelMeshes.forEach((m) => box.expandByObject(m));
+      const worldCenter = box.getCenter(new THREE.Vector3());
+      reelGroup = new THREE.Group();
+      model.add(reelGroup);
+      model.updateMatrixWorld(true);
+      reelGroup.position.copy(model.worldToLocal(worldCenter.clone()));
+      reelMeshes.forEach((m) => reelGroup.attach(m));
+    }
 
     modelGroup.add(pivot);
     finishLoading();
@@ -341,6 +386,10 @@ function tick() {
   currentRot.y += (targetRot.y - currentRot.y) * LERP;
   currentRot.z += (targetRot.z - currentRot.z) * LERP;
   modelGroup.rotation.copy(currentRot);
+
+  if (reelGroup) {
+    reelGroup.rotation.y += audioOn ? REEL_PLAY_SPEED : REEL_IDLE_SPEED;
+  }
 
   updateSections(scrollProgress);
   updateProgressBar(scrollProgress);
