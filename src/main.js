@@ -424,10 +424,25 @@ canvas.addEventListener("pointercancel", endDrag);
 // then bounce back) and route the press to the audio engine. Mesh names below
 // were identified by inspecting the loaded GLB at runtime — record/play/stop
 // each consist of a base + cap mesh that move together.
+// Mesh names mapped to controls. The bottom transport trio (rec/play/stop)
+// each has a base + cap mesh that move together. Side controls (rocker, +/-,
+// knob) get press feedback only; their audio behavior would need real
+// scrubbing/level controls that the synthesized pad doesn't expose.
 const BUTTON_GROUPS = {
   rec: { meshes: ["Cube002", "Cube009", "Plane005"], action: "rec" },
   play: { meshes: ["Cube003", "Cube010"], action: "play" },
   stop: { meshes: ["Cube004", "Cube011"], action: "stop" },
+  plus: { meshes: ["Cylinder003"], action: "plus" },
+  minus: { meshes: ["Cylinder002"], action: "minus" },
+  rocker: { meshes: ["Cube001_1", "Cube001_2"], action: "rocker" },
+  knob: {
+    meshes: ["Cylinder_1", "Cylinder_2", "Cylinder_3", "Cylinder_4"],
+    action: "knob",
+  },
+  reel: {
+    meshes: ["Cylinder001", "Cylinder011", "Cylinder011_1"],
+    action: "reel",
+  },
 };
 const PRESS_DEPTH = 0.012;
 const PRESS_DOWN_MS = 80;
@@ -492,8 +507,15 @@ function setAudio(on) {
 
 function handleButtonAction(key) {
   const action = BUTTON_GROUPS[key].action;
-  if (action === "rec" || action === "play") setAudio(true);
-  else if (action === "stop") setAudio(false);
+  // Audio engine is just on/off — map controls to that vocabulary:
+  //   rec / play / + → start the pad
+  //   stop / -        → stop the pad
+  //   rocker / knob / reel → press feedback only
+  if (action === "rec" || action === "play" || action === "plus") {
+    setAudio(true);
+  } else if (action === "stop" || action === "minus") {
+    setAudio(false);
+  }
 }
 
 const raycaster = new THREE.Raycaster();
