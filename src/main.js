@@ -9,6 +9,7 @@ const loaderBar = loaderEl.querySelector(".loader__bar span");
 const progressBar = document.getElementById("progress-bar");
 const sections = Array.from(document.querySelectorAll(".section"));
 const audioBtn = document.getElementById("audio-toggle");
+const themeBtn = document.getElementById("theme-toggle");
 
 // ── Renderer ────────────────────────────────────────────
 const renderer = new THREE.WebGLRenderer({
@@ -62,6 +63,80 @@ scene.add(modelGroup);
 
 let model = null;
 
+// ── Theme ───────────────────────────────────────────────
+// Dark mode tints the white body toward warm graphite (so it sits in a black
+// scene). Light mode pushes the body to near-black so the device reads as a
+// solid dark object on a light page. Per-material original colors are cached
+// at load time, so each tint is computed from the BASE color, not compounded.
+let currentTheme = "dark";
+
+function tintForTheme(theme, baseColor) {
+  const lum =
+    baseColor.r * 0.299 + baseColor.g * 0.587 + baseColor.b * 0.114;
+  if (theme === "light") {
+    // Crush almost every base color to near-black so the device reads as a
+    // dark silhouette on the cream background. Pure-black parts stay black.
+    const mult = lum > 0.05 ? 0.05 + (1 - lum) * 0.1 : 1;
+    return baseColor.clone().multiplyScalar(mult);
+  }
+  // Dark mode: whites → graphite, darks unchanged
+  const mult = 1 - lum * 0.58;
+  return baseColor.clone().multiplyScalar(mult);
+}
+
+function applyTheme(theme) {
+  currentTheme = theme;
+  document.documentElement.dataset.theme = theme;
+
+  // Re-derive material colors AND PBR knobs from cached base values. In light
+  // mode we crank roughness up + add metalness offset only slightly, and we
+  // drop envMapIntensity hard so the metallic body doesn't reflect the studio
+  // env back as bright highlights — that's what kept it looking white before.
+  if (model) {
+    model.traverse((child) => {
+      if (!child.isMesh || !child.material) return;
+      const mat = child.material;
+      const base = mat.userData.baseColor;
+      if (base && mat.color) {
+        mat.color.copy(tintForTheme(theme, base));
+      }
+      const baseR = mat.userData.baseRoughness ?? 0.5;
+      const baseM = mat.userData.baseMetalness ?? 0;
+      if (theme === "light") {
+        mat.roughness = Math.min(1, baseR + 0.45);
+        mat.metalness = Math.max(0, baseM - 0.3);
+        mat.envMapIntensity = 0.12;
+      } else {
+        mat.roughness = baseR;
+        mat.metalness = Math.min(1, baseM + 0.1);
+        mat.envMapIntensity = 0.85;
+      }
+    });
+  }
+
+  // Lighting: in light mode the warm rim reads orange against a cream bg, and
+  // the dark device needs a softer key + extra ambient to keep edges visible.
+  if (theme === "light") {
+    ambient.intensity = 0.65;
+    keyLight.intensity = 0.7;
+    rimLight.intensity = 0.25;
+    rimLight.color.setHex(0xffffff);
+    fillLight.intensity = 0.18;
+    renderer.toneMappingExposure = 1.0;
+  } else {
+    ambient.intensity = 0.18;
+    keyLight.intensity = 1.1;
+    rimLight.intensity = 0.7;
+    rimLight.color.setHex(0xffb37a);
+    fillLight.intensity = 0.5;
+    renderer.toneMappingExposure = 0.78;
+  }
+
+  themeBtn.setAttribute("aria-pressed", theme === "light" ? "true" : "false");
+  themeBtn.querySelector(".theme-toggle__label").textContent =
+    theme === "light" ? "DARK" : "LIGHT";
+}
+
 const gltfLoader = new GLTFLoader();
 gltfLoader.load(
   "/assets/teenage-engineering.glb",
@@ -85,24 +160,19 @@ gltfLoader.load(
     // +Z (camera), long axis vertical.
     pivot.rotation.x = Math.PI / 2;
 
-    // Tint the white plastic toward a warm graphite so text overlays remain
-    // readable. Brighter parts (white body) get pulled down hardest; darker
-    // accents (record button, screen, metal) stay near their original tone.
+    // Cache base PBR properties once, so we can re-derive theme-specific
+    // tints/material settings without compounding mutations.
     model.traverse((child) => {
       if (!child.isMesh || !child.material) return;
       const mat = child.material;
-      mat.envMapIntensity = 0.85;
       if (mat.color) {
-        const lum =
-          mat.color.r * 0.299 + mat.color.g * 0.587 + mat.color.b * 0.114;
-        // Map luminance 0..1 to a multiplier 1..0.42 (white → graphite)
-        const mult = 1 - lum * 0.58;
-        mat.color.multiplyScalar(mult);
+        mat.userData.baseColor = mat.color.clone();
       }
-      if (mat.metalness !== undefined) {
-        mat.metalness = Math.min(1, (mat.metalness ?? 0) + 0.1);
-      }
+      mat.userData.baseRoughness = mat.roughness ?? 0.5;
+      mat.userData.baseMetalness = mat.metalness ?? 0;
     });
+
+    applyTheme(currentTheme);
 
     modelGroup.add(pivot);
     finishLoading();
@@ -270,6 +340,10 @@ window.addEventListener("resize", () => {
 // ── Ambient audio ───────────────────────────────────────
 const pad = createAmbientPad();
 let audioOn = false;
+
+themeBtn.addEventListener("click", () => {
+  applyTheme(currentTheme === "light" ? "dark" : "light");
+});
 
 audioBtn.addEventListener("click", async () => {
   if (!audioOn) {

@@ -5,7 +5,27 @@
   --dim: rgba(244, 244, 242, 0.32);
   --accent: #ff5a1f;
   --line: rgba(244, 244, 242, 0.12);
+  --shadow: var(--shadow);
+  --shadow-soft: var(--shadow-soft);
   --font: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --bg: #f1ede6;
+  --fg: #0a0a0a;
+  --muted: rgba(10, 10, 10, 0.6);
+  --dim: rgba(10, 10, 10, 0.38);
+  --accent: #d94814;
+  --line: rgba(10, 10, 10, 0.14);
+  --shadow: rgba(241, 237, 230, 0.55);
+  --shadow-soft: rgba(241, 237, 230, 0.6);
+  color-scheme: light;
+}
+
+html,
+body {
+  transition: background-color 0.5s ease, color 0.5s ease;
 }
 
 * {
@@ -139,7 +159,7 @@ body {
      past the line-box at line-height: 1. */
   padding-bottom: 0.22em;
   text-transform: lowercase;
-  text-shadow: 0 0 32px rgba(0, 0, 0, 0.55);
+  text-shadow: 0 0 32px var(--shadow);
 }
 
 .title--md {
@@ -174,7 +194,7 @@ body {
   margin: 1.5rem 0 0;
   max-width: 38ch;
   letter-spacing: 0.01em;
-  text-shadow: 0 0 24px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 0 24px var(--shadow-soft);
 }
 
 .hint {
@@ -234,7 +254,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
-  background: rgba(244, 244, 242, 0.06);
+  background: rgba(127, 127, 127, 0.06);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--line);
@@ -247,12 +267,12 @@ body {
   text-transform: uppercase;
   cursor: pointer;
   z-index: 20;
-  transition: color 0.2s ease, border-color 0.2s ease;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.5s ease;
 }
 
 .audio-toggle:hover {
   color: var(--fg);
-  border-color: rgba(244, 244, 242, 0.3);
+  border-color: rgba(127, 127, 127, 0.32);
 }
 
 .audio-toggle__dot {
@@ -266,6 +286,48 @@ body {
 .audio-toggle[aria-pressed="true"] .audio-toggle__dot {
   background: var(--accent);
   box-shadow: 0 0 8px var(--accent);
+}
+
+/* ── Theme toggle ──────────────────────────────────────── */
+.theme-toggle {
+  position: fixed;
+  bottom: 1.75rem;
+  left: 2rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: rgba(127, 127, 127, 0.06);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.55rem 0.95rem;
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 0.65rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  cursor: pointer;
+  z-index: 20;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.5s ease;
+}
+
+.theme-toggle:hover {
+  color: var(--fg);
+  border-color: rgba(127, 127, 127, 0.32);
+}
+
+.theme-toggle__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dim);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.theme-toggle[aria-pressed="true"] .theme-toggle__dot {
+  background: var(--fg);
+  box-shadow: 0 0 8px var(--fg);
 }
 
 /* ── Progress bar ──────────────────────────────────────── */
