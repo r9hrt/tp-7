@@ -1,0 +1,326 @@
+:root {
+  --bg: #0a0a0a;
+  --fg: #f4f4f2;
+  --muted: rgba(244, 244, 242, 0.55);
+  --dim: rgba(244, 244, 242, 0.32);
+  --accent: #ff5a1f;
+  --line: rgba(244, 244, 242, 0.12);
+  --font: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+body {
+  /* 6 sections × 100vh = scroll length that drives 0..1 progress */
+  min-height: 600vh;
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  display: block;
+  pointer-events: none;
+}
+
+/* ── Top bar ───────────────────────────────────────────── */
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  z-index: 20;
+  mix-blend-mode: difference;
+}
+
+.topbar__brand {
+  font-weight: 500;
+}
+
+.topbar__sku {
+  font-weight: 500;
+  color: var(--fg);
+}
+
+/* ── Sections (overlaid text) ──────────────────────────── */
+#sections {
+  position: relative;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.section {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 6rem 8vw;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+  will-change: opacity, transform;
+  pointer-events: none;
+}
+
+.section.is-active {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.section--center {
+  align-items: center;
+  text-align: center;
+}
+
+.section--right {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.section--left {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.section--bottom {
+  justify-content: flex-end;
+  padding-bottom: 4.5rem;
+}
+
+.eyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1.5rem;
+  font-weight: 500;
+}
+
+.title {
+  font-family: var(--font);
+  font-weight: 300;
+  font-size: clamp(4rem, 14vw, 11rem);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  margin: 0;
+  text-transform: lowercase;
+}
+
+.title--md {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  letter-spacing: -0.02em;
+  font-weight: 400;
+  text-transform: none;
+}
+
+.title--lg {
+  font-size: clamp(3rem, 9vw, 7rem);
+  font-weight: 300;
+}
+
+.tagline {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin: 1.25rem 0 0;
+  max-width: 36ch;
+  letter-spacing: 0.02em;
+}
+
+.body {
+  font-size: 0.95rem;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 1.5rem 0 0;
+  max-width: 38ch;
+  letter-spacing: 0.01em;
+}
+
+.hint {
+  position: absolute;
+  bottom: 2.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin: 0;
+  animation: nudge 2.4s ease-in-out infinite;
+}
+
+@keyframes nudge {
+  0%, 100% {
+    transform: translate(-50%, 0);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translate(-50%, 6px);
+    opacity: 0.9;
+  }
+}
+
+/* ── CTA ───────────────────────────────────────────────── */
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 2rem;
+  padding: 1rem 1.75rem;
+  border: 1px solid var(--fg);
+  border-radius: 999px;
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 0.78rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  background: transparent;
+  transition: background 0.25s ease, color 0.25s ease, transform 0.25s ease;
+  pointer-events: auto;
+}
+
+.cta:hover {
+  background: var(--fg);
+  color: var(--bg);
+  transform: translateY(-1px);
+}
+
+/* ── Audio toggle ──────────────────────────────────────── */
+.audio-toggle {
+  position: fixed;
+  bottom: 1.75rem;
+  right: 2rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: rgba(244, 244, 242, 0.06);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.55rem 0.95rem;
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 0.65rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  cursor: pointer;
+  z-index: 20;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.audio-toggle:hover {
+  color: var(--fg);
+  border-color: rgba(244, 244, 242, 0.3);
+}
+
+.audio-toggle__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dim);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.audio-toggle[aria-pressed="true"] .audio-toggle__dot {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+/* ── Progress bar ──────────────────────────────────────── */
+.progress {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--line);
+  z-index: 20;
+}
+
+.progress__bar {
+  height: 100%;
+  width: 0%;
+  background: var(--fg);
+  transform-origin: left;
+  transition: width 0.08s linear;
+}
+
+/* ── Loader ───────────────────────────────────────────── */
+#loader {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1.25rem;
+  transition: opacity 0.6s ease, visibility 0.6s ease;
+}
+
+#loader.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.loader__bar {
+  width: 160px;
+  height: 1px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.loader__bar span {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: var(--fg);
+  transition: width 0.2s ease;
+}
+
+.loader__label {
+  font-size: 0.65rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* ── Reduced motion ───────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .section,
+  .progress__bar,
+  .hint,
+  #loader {
+    transition: none;
+    animation: none;
+  }
+}

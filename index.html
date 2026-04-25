@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a0a0a" />
+    <title>TP-7 — Teenage Engineering</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+
+    <div id="loader" aria-hidden="true">
+      <div class="loader__bar"><span></span></div>
+      <p class="loader__label">LOADING</p>
+    </div>
+
+    <header class="topbar">
+      <span class="topbar__brand">teenage engineering</span>
+      <span class="topbar__sku">TP—7</span>
+    </header>
+
+    <main id="sections">
+      <section class="section" data-index="0">
+        <p class="eyebrow">FIELD RECORDER · 01</p>
+        <h1 class="title">TP—7</h1>
+        <p class="tagline">Tape, but for the way you work now.</p>
+        <p class="hint">Scroll to explore</p>
+      </section>
+
+      <section class="section section--right" data-index="1">
+        <p class="eyebrow">02 · CAPTURE</p>
+        <h2 class="title title--md">Field recorder.</h2>
+        <p class="body">
+          A high-fidelity recorder built around a motorized tape-style reel —
+          designed for the field, the studio, and everywhere in between.
+        </p>
+      </section>
+
+      <section class="section section--left" data-index="2">
+        <p class="eyebrow">03 · INTERFACE</p>
+        <h2 class="title title--md">Always-on display.</h2>
+        <p class="body">
+          A monochrome screen surfaces what matters: levels, take, scene.
+          Tactile transport keys put control under your thumb.
+        </p>
+      </section>
+
+      <section class="section section--right" data-index="3">
+        <p class="eyebrow">04 · CONNECT</p>
+        <h2 class="title title--md">Built to plug in.</h2>
+        <p class="body">
+          USB-C, 3.5 mm in/out, and a discreet machined chassis — all the I/O
+          you need, none of the noise you don't.
+        </p>
+      </section>
+
+      <section class="section section--center" data-index="4">
+        <p class="eyebrow">05 · ORIGIN</p>
+        <h2 class="title title--md">Designed in Stockholm.</h2>
+        <p class="body">
+          Crafted by Teenage Engineering — quiet machines for loud ideas.
+        </p>
+      </section>
+
+      <section class="section section--center section--bottom" data-index="5">
+        <p class="eyebrow">06 · TP—7</p>
+        <h2 class="title title--md">Press record.</h2>
+        <a class="cta" href="#" aria-label="Discover the TP-7">
+          <span>Discover</span>
+          <svg
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
+        </a>
+      </section>
+    </main>
+
+    <button id="audio-toggle" class="audio-toggle" aria-label="Toggle ambient audio" aria-pressed="false">
+      <span class="audio-toggle__dot"></span>
+      <span class="audio-toggle__label">SOUND OFF</span>
+    </button>
+
+    <div class="progress" aria-hidden="true">
+      <div class="progress__bar" id="progress-bar"></div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
