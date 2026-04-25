@@ -465,7 +465,34 @@ function meshesForGroup(key) {
   return out;
 }
 
+// Reel click → spin instead of press. The reel meshes share the same world
+// origin (the reel center on the front face), so rotating each around the
+// world Z axis spins the disc face cleanly. Pressing them like a button
+// would translate the front plate into the body and expose the grey shell.
+function spinReel() {
+  const meshes = meshesForGroup("reel");
+  if (meshes.length === 0) return;
+  const start = performance.now();
+  const duration = 1000;
+  const totalAngle = Math.PI * 2;
+  const axis = new THREE.Vector3(0, 0, 1);
+  let lastEased = 0;
+  function step(now) {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 2);
+    const delta = totalAngle * (eased - lastEased);
+    meshes.forEach((m) => m.rotateOnWorldAxis(axis, delta));
+    lastEased = eased;
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
 function pressButton(key) {
+  if (key === "reel") {
+    spinReel();
+    return;
+  }
   const meshes = meshesForGroup(key);
   if (meshes.length === 0) return;
   // Cache the resting Y position once per mesh so repeated presses always
