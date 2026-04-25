@@ -21,7 +21,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 0.78;
 
 // ── Scene & camera ──────────────────────────────────────
 const scene = new THREE.Scene();
@@ -41,18 +41,18 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
 // ── Lights ──────────────────────────────────────────────
-const ambient = new THREE.AmbientLight(0xffffff, 0.35);
+const ambient = new THREE.AmbientLight(0xffffff, 0.18);
 scene.add(ambient);
 
-const keyLight = new THREE.DirectionalLight(0xffffff, 1.4);
+const keyLight = new THREE.DirectionalLight(0xffffff, 1.1);
 keyLight.position.set(2.5, 3.5, 2.5);
 scene.add(keyLight);
 
-const rimLight = new THREE.DirectionalLight(0xfff0e8, 0.6);
+const rimLight = new THREE.DirectionalLight(0xffb37a, 0.7);
 rimLight.position.set(-3, 1.5, -2);
 scene.add(rimLight);
 
-const fillLight = new THREE.PointLight(0xffe5d1, 0.7, 8);
+const fillLight = new THREE.PointLight(0xffd5a8, 0.5, 8);
 fillLight.position.set(-1.5, 0.5, 2);
 scene.add(fillLight);
 
@@ -86,9 +86,22 @@ gltfLoader.load(
     pivot.rotation.x = Math.PI / 2;
     pivot.rotation.y = Math.PI / 2;
 
+    // Tint the white plastic toward a warm graphite so text overlays remain
+    // readable. Brighter parts (white body) get pulled down hardest; darker
+    // accents (record button, screen, metal) stay near their original tone.
     model.traverse((child) => {
-      if (child.isMesh && child.material) {
-        child.material.envMapIntensity = 0.9;
+      if (!child.isMesh || !child.material) return;
+      const mat = child.material;
+      mat.envMapIntensity = 0.85;
+      if (mat.color) {
+        const lum =
+          mat.color.r * 0.299 + mat.color.g * 0.587 + mat.color.b * 0.114;
+        // Map luminance 0..1 to a multiplier 1..0.42 (white → graphite)
+        const mult = 1 - lum * 0.58;
+        mat.color.multiplyScalar(mult);
+      }
+      if (mat.metalness !== undefined) {
+        mat.metalness = Math.min(1, (mat.metalness ?? 0) + 0.1);
       }
     });
 
@@ -143,10 +156,10 @@ const keyframes = [
     rot: new THREE.Euler(-0.18, Math.PI / 14, 0),
   },
   {
-    // 60% — back of the device (connectors, materials)
-    camPos: new THREE.Vector3(0.5, 0.05, 2.2),
-    camLook: new THREE.Vector3(0.5, 0, 0),
-    rot: new THREE.Euler(0, Math.PI, 0),
+    // 60% — side panel with connectors (USB-C + 3.5mm jacks 1/2/3)
+    camPos: new THREE.Vector3(0.55, 0.1, 1.9),
+    camLook: new THREE.Vector3(0.55, 0, 0),
+    rot: new THREE.Euler(-0.05, Math.PI / 2.05, 0),
   },
   {
     // 80% — view from below, "Designed in Stockholm"
@@ -204,14 +217,21 @@ function updateTargets(progress) {
 }
 
 function updateSections(progress) {
+  // Pick the single section nearest to the current scroll progress and only
+  // activate that one — so two overlay texts never share the screen.
   const n = sections.length;
   const step = 1 / (n - 1);
-  const halfWindow = step * 0.55;
+
+  let activeIndex = Math.round(progress / step);
+  activeIndex = Math.max(0, Math.min(n - 1, activeIndex));
+
+  // Add a small dead-band near each section's center so the text holds put,
+  // and fades cleanly during the transition between adjacent keyframes.
+  const center = activeIndex * step;
+  const within = Math.abs(progress - center) <= step * 0.4;
 
   sections.forEach((s, i) => {
-    const center = i * step;
-    const dist = Math.abs(progress - center);
-    s.classList.toggle("is-active", dist <= halfWindow);
+    s.classList.toggle("is-active", within && i === activeIndex);
   });
 }
 
