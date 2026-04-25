@@ -131,12 +131,11 @@ body {
   font-family: var(--font);
   font-weight: 300;
   font-size: clamp(4rem, 14vw, 11rem);
-  line-height: 0.85;
+  /* line-height 1 keeps the descender INSIDE the line box, so the next
+     line never collides with the tail of "p"/"y" no matter the font size. */
+  line-height: 1;
   letter-spacing: -0.04em;
   margin: 0;
-  /* Pull the next line up to cancel the descender's empty space inside
-     the line box — keeps title→subtitle gap consistent at any font size. */
-  margin-bottom: -0.18em;
   text-transform: lowercase;
   text-shadow: 0 0 32px rgba(0, 0, 0, 0.55);
 }
@@ -146,7 +145,6 @@ body {
   letter-spacing: -0.02em;
   font-weight: 400;
   text-transform: none;
-  margin-bottom: -0.1em;
 }
 
 .title--lg {
@@ -164,7 +162,7 @@ body {
 
 .title + .tagline,
 .title + .body {
-  margin-top: 1.25rem;
+  margin-top: 0.25rem;
 }
 
 .body {
