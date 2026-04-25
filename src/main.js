@@ -68,21 +68,16 @@ let model = null;
 // group spins them all in place — without it, each mesh rotates around its
 // own pivot which sits off-center, flinging them out into the scene.
 let reelGroup = null;
-// Includes both the cylinder bodies AND the decal planes layered on the reel
-// face — without the decals, the cylinders spin invisibly (gray on gray) and
-// you can't tell the reel is moving.
+// Just the disc itself + its inner knob + the small luminescent dots painted
+// on the disc surface. Earlier attempts pulled in `Plane` (the entire white
+// front face plate) and big decals (TP-7, TODAY, M, 96/24) which sit on the
+// face plate — those must NOT spin, only the disc does.
 const REEL_MESH_NAMES = [
   "Cylinder001",
   "Cylinder007",
   "Cylinder008",
   "Cylinder011",
   "Cylinder011_1",
-  "Plane",
-  "Plane001",
-  "Plane002",
-  "Plane003",
-  "Plane004",
-  "Plane011",
 ];
 const REEL_IDLE_SPEED = 0.004;
 const REEL_PLAY_SPEED = 0.045;
