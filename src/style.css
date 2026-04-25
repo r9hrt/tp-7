@@ -114,6 +114,10 @@ body {
   padding-bottom: 4.5rem;
 }
 
+.section--bottom .eyebrow {
+  display: none;
+}
+
 .eyebrow {
   font-size: 0.7rem;
   letter-spacing: 0.32em;
@@ -127,7 +131,7 @@ body {
   font-family: var(--font);
   font-weight: 300;
   font-size: clamp(4rem, 14vw, 11rem);
-  line-height: 0.95;
+  line-height: 0.85;
   letter-spacing: -0.04em;
   margin: 0;
   text-transform: lowercase;
@@ -149,9 +153,14 @@ body {
 .tagline {
   font-size: 0.95rem;
   color: var(--muted);
-  margin: 1.25rem 0 0;
+  margin: 0.5rem 0 0;
   max-width: 36ch;
   letter-spacing: 0.02em;
+}
+
+.title + .tagline,
+.title + .body {
+  margin-top: 0.75rem;
 }
 
 .body {

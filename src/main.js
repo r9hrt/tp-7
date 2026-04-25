@@ -81,10 +81,9 @@ gltfLoader.load(
     const targetSize = 1.5;
     pivot.scale.setScalar(targetSize / maxDim);
 
-    // Stand the device up: working face (+Y in GLB) toward +Z (camera).
-    // Then rotate around Y so the device's long axis runs left-right (landscape).
+    // Stand the device upright in portrait: working face (+Y in GLB) toward
+    // +Z (camera), long axis vertical.
     pivot.rotation.x = Math.PI / 2;
-    pivot.rotation.y = Math.PI / 2;
 
     // Tint the white plastic toward a warm graphite so text overlays remain
     // readable. Brighter parts (white body) get pulled down hardest; darker
@@ -133,44 +132,44 @@ function finishLoading() {
 // Camera offset-x is also used to push the model off-center so overlay text
 // has room — that's what makes Apple-style product pages feel composed.
 // Each keyframe drives camera (pos + look) and the model group rotation.
-// Camera offset-x pushes the model off-center so overlay text has room.
-// Working face is already pointing at +Z (see pivot.rotation.x above), so
-// rot.y rotates around the device's vertical axis like turning it in hand.
+// Device is portrait: long axis vertical, working face at +Z, so rot.y spins
+// it around its own vertical (like turning the device in your hand) and
+// rot.x tilts the top toward / away from camera.
 const keyframes = [
   {
     // 0% — front view, model right of frame, hero text left
-    camPos: new THREE.Vector3(-0.4, 0.05, 2.3),
-    camLook: new THREE.Vector3(-0.4, 0, 0),
+    camPos: new THREE.Vector3(-0.55, 0, 3.1),
+    camLook: new THREE.Vector3(-0.55, 0, 0),
     rot: new THREE.Euler(0, 0, 0),
   },
   {
     // 20% — gentle rotation right, model left of frame, text right
-    camPos: new THREE.Vector3(0.55, 0.05, 2.2),
+    camPos: new THREE.Vector3(0.55, 0, 3.0),
     camLook: new THREE.Vector3(0.55, 0, 0),
     rot: new THREE.Euler(0, Math.PI / 7, 0),
   },
   {
-    // 40% — close zoom on the screen + transport keys
-    camPos: new THREE.Vector3(-0.35, 0.1, 1.4),
-    camLook: new THREE.Vector3(-0.35, 0.1, 0),
-    rot: new THREE.Euler(-0.18, Math.PI / 14, 0),
+    // 40% — close zoom on the screen (top of the device) + dial
+    camPos: new THREE.Vector3(-0.5, 0.45, 2.0),
+    camLook: new THREE.Vector3(-0.5, 0.4, 0),
+    rot: new THREE.Euler(-0.12, Math.PI / 16, 0),
   },
   {
     // 60% — side panel with connectors (USB-C + 3.5mm jacks 1/2/3)
-    camPos: new THREE.Vector3(0.55, 0.1, 1.9),
+    camPos: new THREE.Vector3(0.55, 0, 2.4),
     camLook: new THREE.Vector3(0.55, 0, 0),
-    rot: new THREE.Euler(-0.05, Math.PI / 2.05, 0),
+    rot: new THREE.Euler(0, -Math.PI / 2.05, 0),
   },
   {
     // 80% — view from below, "Designed in Stockholm"
-    camPos: new THREE.Vector3(0, -0.55, 2.0),
-    camLook: new THREE.Vector3(0, 0.05, 0),
-    rot: new THREE.Euler(0.5, Math.PI * 1.4, 0),
+    camPos: new THREE.Vector3(0, -0.85, 2.6),
+    camLook: new THREE.Vector3(0, 0, 0),
+    rot: new THREE.Euler(0.4, Math.PI * 1.35, 0),
   },
   {
-    // 100% — return to front, centered, CTA
-    camPos: new THREE.Vector3(0, 0, 2.8),
-    camLook: new THREE.Vector3(0, 0, 0),
+    // 100% — return to front, slightly above and zoomed out, CTA below
+    camPos: new THREE.Vector3(0, 0.3, 4.2),
+    camLook: new THREE.Vector3(0, 0.1, 0),
     rot: new THREE.Euler(0, Math.PI * 2, 0),
   },
 ];
