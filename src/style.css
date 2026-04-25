@@ -134,6 +134,9 @@ body {
   line-height: 0.85;
   letter-spacing: -0.04em;
   margin: 0;
+  /* Pull the next line up to cancel the descender's empty space inside
+     the line box — keeps title→subtitle gap consistent at any font size. */
+  margin-bottom: -0.18em;
   text-transform: lowercase;
   text-shadow: 0 0 32px rgba(0, 0, 0, 0.55);
 }
@@ -143,6 +146,7 @@ body {
   letter-spacing: -0.02em;
   font-weight: 400;
   text-transform: none;
+  margin-bottom: -0.1em;
 }
 
 .title--lg {
@@ -160,7 +164,7 @@ body {
 
 .title + .tagline,
 .title + .body {
-  margin-top: 0.75rem;
+  margin-top: 1.25rem;
 }
 
 .body {
