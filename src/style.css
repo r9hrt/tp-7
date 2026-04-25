@@ -330,6 +330,114 @@ body {
   box-shadow: 0 0 8px var(--fg);
 }
 
+/* ── Mode toggle (Present ↔ Explore) ───────────────────── */
+.mode-toggle {
+  position: fixed;
+  bottom: 1.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(127, 127, 127, 0.06);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.6rem 1.25rem;
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 0.65rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  cursor: pointer;
+  z-index: 20;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.5s ease;
+}
+
+.mode-toggle:hover {
+  color: var(--fg);
+  border-color: rgba(127, 127, 127, 0.32);
+}
+
+.mode-toggle[aria-pressed="true"] {
+  color: var(--fg);
+  border-color: rgba(127, 127, 127, 0.45);
+}
+
+/* ── Interactive-mode body state ───────────────────────── */
+body.is-interactive {
+  /* Lock scroll so the device stays framed and pointer events go to the
+     canvas instead of being interpreted as scroll gestures. */
+  overflow: hidden;
+}
+
+body.is-interactive #scene {
+  /* Canvas normally has pointer-events: none so overlay text stays clickable.
+     In explore mode we hand pointer events to the WebGL surface. */
+  pointer-events: auto;
+  cursor: grab;
+}
+
+body.is-interactive #scene:active {
+  cursor: grabbing;
+}
+
+body.is-interactive #sections,
+body.is-interactive .progress,
+body.is-interactive .hint {
+  /* Hide narrative overlays while the user is exploring the device. */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.explore-hint {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  z-index: 15;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+body.is-interactive .explore-hint {
+  opacity: 1;
+  visibility: visible;
+  /* Fade the hint out after a moment so it doesn't block the device view. */
+  animation: hint-fade 4s ease forwards;
+}
+
+@keyframes hint-fade {
+  0%,
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+.explore-hint__title {
+  margin: 0 0 0.4rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.explore-hint__body {
+  margin: 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
 /* ── Progress bar ──────────────────────────────────────── */
 .progress {
   position: fixed;

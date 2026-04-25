@@ -10,6 +10,7 @@ const progressBar = document.getElementById("progress-bar");
 const sections = Array.from(document.querySelectorAll(".section"));
 const audioBtn = document.getElementById("audio-toggle");
 const themeBtn = document.getElementById("theme-toggle");
+const modeBtn = document.getElementById("mode-toggle");
 
 // ── Renderer ────────────────────────────────────────────
 const renderer = new THREE.WebGLRenderer({
@@ -255,6 +256,19 @@ const currentRot = new THREE.Euler().copy(keyframes[0].rot);
 
 const LERP = 0.07;
 
+// ── Interactive (explore) mode ──────────────────────────
+// In explore mode, scroll-driven keyframes are bypassed: the camera holds a
+// hero pose centered on the device, and the model's rotation is driven by
+// pointer drag. Lets the user inspect the device freely. Subsequent work will
+// add raycaster-driven control interactions on top of this.
+let interactiveMode = false;
+const explorePose = {
+  camPos: new THREE.Vector3(0, 0, 2.6),
+  camLook: new THREE.Vector3(0, 0, 0),
+};
+let exploreYaw = 0;
+let explorePitch = 0;
+
 function readScroll() {
   const max = document.documentElement.scrollHeight - window.innerHeight;
   scrollProgress = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
@@ -268,6 +282,13 @@ function smoothstep(t) {
 }
 
 function updateTargets(progress) {
+  if (interactiveMode) {
+    targetCamPos.copy(explorePose.camPos);
+    targetCamLook.copy(explorePose.camLook);
+    targetRot.set(explorePitch, exploreYaw, 0);
+    return;
+  }
+
   const segCount = keyframes.length - 1;
   const scaled = progress * segCount;
   const i = Math.min(segCount - 1, Math.floor(scaled));
@@ -344,6 +365,57 @@ let audioOn = false;
 themeBtn.addEventListener("click", () => {
   applyTheme(currentTheme === "light" ? "dark" : "light");
 });
+
+modeBtn.addEventListener("click", () => {
+  interactiveMode = !interactiveMode;
+  document.body.classList.toggle("is-interactive", interactiveMode);
+  modeBtn.setAttribute("aria-pressed", interactiveMode ? "true" : "false");
+  modeBtn.querySelector(".mode-toggle__label").textContent = interactiveMode
+    ? "BACK"
+    : "EXPLORE";
+  if (interactiveMode) {
+    // Snap rotation state to a clean front pose so the device "settles" facing
+    // the user when entering interactive mode, regardless of scroll position.
+    exploreYaw = 0;
+    explorePitch = 0;
+  }
+});
+
+// Pointer drag → rotate device in interactive mode. Capture the pointer so a
+// drag that wanders off the canvas still tracks until release.
+let dragging = false;
+let lastPointerX = 0;
+let lastPointerY = 0;
+
+canvas.addEventListener("pointerdown", (e) => {
+  if (!interactiveMode) return;
+  dragging = true;
+  lastPointerX = e.clientX;
+  lastPointerY = e.clientY;
+  canvas.setPointerCapture(e.pointerId);
+});
+
+canvas.addEventListener("pointermove", (e) => {
+  if (!dragging) return;
+  const dx = e.clientX - lastPointerX;
+  const dy = e.clientY - lastPointerY;
+  lastPointerX = e.clientX;
+  lastPointerY = e.clientY;
+  exploreYaw += dx * 0.006;
+  // Clamp pitch so the user can tilt up/down a bit without flipping the model.
+  explorePitch = Math.max(-0.7, Math.min(0.7, explorePitch + dy * 0.005));
+});
+
+function endDrag(e) {
+  if (!dragging) return;
+  dragging = false;
+  try {
+    canvas.releasePointerCapture(e.pointerId);
+  } catch (_) {}
+}
+
+canvas.addEventListener("pointerup", endDrag);
+canvas.addEventListener("pointercancel", endDrag);
 
 audioBtn.addEventListener("click", async () => {
   if (!audioOn) {
