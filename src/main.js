@@ -249,16 +249,19 @@ gltfLoader.load(
 // Loader sequence: bg → bar fades in → bar fills → brand reveals → hold → fade out.
 // Even on cached reloads, hold the bar long enough that the user reads it as
 // "loading" rather than as a flash; the brand only appears once the bar is full.
-const LOADER_MIN_BAR_MS = 1100;
-const BRAND_HOLD_MS = 3200;
+const LOADER_MIN_BAR_MS = 1700;
+// Time from the moment "is-revealed" is added to the moment fade-out begins.
+// Includes the brand's 0.6s fade-in, so the figé/full-opacity window is the
+// remainder (~2.5s).
+const BRAND_HOLD_MS = 3100;
 const loaderStart = performance.now();
 
 function finishLoading() {
   loaderBar.style.width = "100%";
   const elapsed = performance.now() - loaderStart;
-  // Wait for the bar's width transition (~0.5s) AND the minimum bar-visible
+  // Wait for the bar's width transition (~1.1s) AND the minimum bar-visible
   // window before revealing the brand.
-  const barWait = Math.max(550, LOADER_MIN_BAR_MS - elapsed);
+  const barWait = Math.max(1150, LOADER_MIN_BAR_MS - elapsed);
   setTimeout(() => {
     loaderEl.classList.add("is-revealed");
     setTimeout(() => {

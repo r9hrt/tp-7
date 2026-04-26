@@ -500,7 +500,7 @@ body.is-interactive .explore-hint {
 }
 
 .loader__bar {
-  width: 140px;
+  width: 240px;
   height: 1px;
   background: var(--line);
   overflow: hidden;
@@ -520,7 +520,7 @@ body.is-interactive .explore-hint {
   height: 100%;
   width: 0%;
   background: var(--fg);
-  transition: width 0.5s ease;
+  transition: width 1.1s ease;
 }
 
 /* ── Reduced motion ───────────────────────────────────── */
