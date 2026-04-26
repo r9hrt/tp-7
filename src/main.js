@@ -302,9 +302,9 @@ const keyframes = [
     // 60% — device tilted nearly flat toward the viewer so the top edge
     // (3 × 3.5 mm TRRS jacks + USB-C) reads almost straight-on. Camera lifted
     // slightly to look down on the connector face.
-    camPos: new THREE.Vector3(0.55, 0.7, 2.4),
-    camLook: new THREE.Vector3(0.55, 0.2, 0),
-    rot: new THREE.Euler(-0.7, 0, 0),
+    camPos: new THREE.Vector3(0.55, 1.6, 2.0),
+    camLook: new THREE.Vector3(0.55, 0.25, 0),
+    rot: new THREE.Euler(-0.45, 0, 0),
   },
   {
     // 80% — view from below, "Designed in Stockholm"
