@@ -111,9 +111,11 @@ function applyTheme(theme) {
       const isDecal = DECAL_MATS.has(matName);
 
       if (base && mat.color) {
-        if (theme === "light" && matName === "orange") {
-          // The orange "M" indicator is inverted to white on the black variant.
-          mat.color.setHex(0xeaeaea);
+        if (matName === "orange") {
+          // The "orange" material maps to the leather back panel (it carries
+          // the leather normal map). Real TP-7 ships with black leather, so
+          // force it dark in both themes regardless of the GLB's base orange.
+          mat.color.setHex(0x0e0e0e);
         } else if (theme === "light" && matName === "decals") {
           // Force "decals" plane color to white in light mode so the printed
           // icons read as clean white over the matte-black body.
