@@ -243,16 +243,23 @@ gltfLoader.load(
   },
   (err) => {
     console.error("GLB load error:", err);
-    loaderEl.querySelector(".loader__label").textContent = "LOAD FAILED";
+    loaderEl.querySelector(".loader__brand").textContent = "load failed";
   },
 );
 
+// Minimum time the loader stays visible so its fade-in animation can play
+// even when the GLB hits the disk cache and "loads" in 50ms.
+const LOADER_MIN_MS = 900;
+const loaderStart = performance.now();
+
 function finishLoading() {
   loaderBar.style.width = "100%";
+  const elapsed = performance.now() - loaderStart;
+  const wait = Math.max(250, LOADER_MIN_MS - elapsed);
   setTimeout(() => {
     loaderEl.classList.add("is-hidden");
     sections[0].classList.add("is-active");
-  }, 250);
+  }, wait);
 }
 
 // ── Keyframes (one per section) ─────────────────────────

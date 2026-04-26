@@ -497,8 +497,20 @@ body.is-interactive .explore-hint {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 1.25rem;
-  transition: opacity 0.6s ease, visibility 0.6s ease;
+  gap: 1.5rem;
+  /* Defaults to visible. Fades in from 0 via the keyframe animation (without
+     `forwards` so it releases control once done), then fades out via the
+     transition when .is-hidden lands. */
+  opacity: 1;
+  visibility: visible;
+  animation: loader-fade-in 0.6s ease;
+  transition: opacity 0.7s ease, visibility 0.7s ease;
+}
+
+@keyframes loader-fade-in {
+  from {
+    opacity: 0;
+  }
 }
 
 #loader.is-hidden {
@@ -506,8 +518,30 @@ body.is-interactive .explore-hint {
   visibility: hidden;
 }
 
+.loader__brand {
+  margin: 0;
+  font-family: var(--font);
+  font-weight: 400;
+  font-size: 0.8rem;
+  letter-spacing: 0.32em;
+  text-transform: lowercase;
+  color: var(--fg);
+  /* Slow, subtle breathing while loading — calms the wait. */
+  animation: loader-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes loader-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .loader__bar {
-  width: 160px;
+  width: 140px;
   height: 1px;
   background: var(--line);
   overflow: hidden;
@@ -519,14 +553,6 @@ body.is-interactive .explore-hint {
   width: 0%;
   background: var(--fg);
   transition: width 0.2s ease;
-}
-
-.loader__label {
-  font-size: 0.65rem;
-  letter-spacing: 0.32em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin: 0;
 }
 
 /* ── Reduced motion ───────────────────────────────────── */
