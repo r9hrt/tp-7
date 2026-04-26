@@ -247,15 +247,16 @@ gltfLoader.load(
   },
 );
 
-// Minimum time the loader stays visible so its fade-in animation can play
-// even when the GLB hits the disk cache and "loads" in 50ms.
-const LOADER_MIN_MS = 900;
+// Hold the loader for a deliberate beat even on cached reloads — short loaders
+// feel jarring because the eye barely registers them. ~1.8s gives the fade-in,
+// the bar fill, and the fade-out room to feel intentional rather than rushed.
+const LOADER_MIN_MS = 1800;
 const loaderStart = performance.now();
 
 function finishLoading() {
   loaderBar.style.width = "100%";
   const elapsed = performance.now() - loaderStart;
-  const wait = Math.max(250, LOADER_MIN_MS - elapsed);
+  const wait = Math.max(450, LOADER_MIN_MS - elapsed);
   setTimeout(() => {
     loaderEl.classList.add("is-hidden");
     sections[0].classList.add("is-active");

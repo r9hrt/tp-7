@@ -503,8 +503,8 @@ body.is-interactive .explore-hint {
      transition when .is-hidden lands. */
   opacity: 1;
   visibility: visible;
-  animation: loader-fade-in 0.6s ease;
-  transition: opacity 0.7s ease, visibility 0.7s ease;
+  animation: loader-fade-in 0.7s ease;
+  transition: opacity 1.1s ease, visibility 1.1s ease;
 }
 
 @keyframes loader-fade-in {
@@ -552,7 +552,7 @@ body.is-interactive .explore-hint {
   height: 100%;
   width: 0%;
   background: var(--fg);
-  transition: width 0.2s ease;
+  transition: width 0.5s ease;
 }
 
 /* ── Reduced motion ───────────────────────────────────── */
