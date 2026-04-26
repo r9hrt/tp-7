@@ -78,17 +78,12 @@ body {
   z-index: 20;
 }
 
-.topbar__brand,
-.topbar__sku {
-  /* Inverts against whatever's behind so brand/SKU stay legible whether the
+.topbar__brand {
+  /* Inverts against whatever's behind so the brand stays legible whether the
      device or empty page is underneath. Controls don't get this — their pill
      bgs would invert weirdly. */
   mix-blend-mode: difference;
   font-weight: 500;
-}
-
-.topbar__sku {
-  color: var(--fg);
 }
 
 .topbar__controls {
