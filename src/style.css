@@ -218,7 +218,8 @@ body {
 
 .section--bottom {
   justify-content: flex-end;
-  padding-bottom: 12vh;
+  padding-bottom: 18vh;
+  gap: 2.5rem;
 }
 
 .section--bottom .eyebrow {
