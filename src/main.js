@@ -3,6 +3,10 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { createAmbientPad } from "./audio.js";
 
+// Always start at the top on refresh
+history.scrollRestoration = "manual";
+window.scrollTo(0, 0);
+
 const canvas = document.getElementById("scene");
 const loaderEl = document.getElementById("loader");
 const loaderBar = loaderEl.querySelector(".loader__bar span");
