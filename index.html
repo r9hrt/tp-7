@@ -25,6 +25,20 @@
 
     <header class="topbar">
       <span class="topbar__brand">teenage engineering</span>
+      <div class="topbar__controls">
+        <div class="mode-switch" id="mode-switch" role="group" aria-label="View mode">
+          <button class="mode-switch__option is-active" data-mode="discover" type="button">discover</button>
+          <button class="mode-switch__option" data-mode="explore" type="button">explore</button>
+        </div>
+        <button id="theme-toggle" class="topbar__toggle" aria-label="Toggle light/dark theme" aria-pressed="false">
+          <span class="topbar__toggle-dot"></span>
+          <span class="topbar__toggle-label">light</span>
+        </button>
+        <button id="audio-toggle" class="topbar__toggle" aria-label="Toggle ambient audio" aria-pressed="false">
+          <span class="topbar__toggle-dot"></span>
+          <span class="topbar__toggle-label">sound</span>
+        </button>
+      </div>
       <span class="topbar__sku">TP—7</span>
     </header>
 
@@ -99,24 +113,10 @@
       </section>
     </main>
 
-    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle light/dark theme" aria-pressed="false">
-      <span class="theme-toggle__dot"></span>
-      <span class="theme-toggle__label">LIGHT</span>
-    </button>
-
-    <button id="mode-toggle" class="mode-toggle" aria-label="Switch to interactive mode" aria-pressed="false">
-      <span class="mode-toggle__label">EXPLORE</span>
-    </button>
-
     <div id="explore-hint" class="explore-hint" aria-hidden="true">
       <p class="explore-hint__title">interactive mode</p>
       <p class="explore-hint__body">drag to rotate · click parts to interact</p>
     </div>
-
-    <button id="audio-toggle" class="audio-toggle" aria-label="Toggle ambient audio" aria-pressed="false">
-      <span class="audio-toggle__dot"></span>
-      <span class="audio-toggle__label">SOUND OFF</span>
-    </button>
 
     <div class="progress" aria-hidden="true">
       <div class="progress__bar" id="progress-bar"></div>

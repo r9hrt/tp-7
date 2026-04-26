@@ -10,7 +10,8 @@ const progressBar = document.getElementById("progress-bar");
 const sections = Array.from(document.querySelectorAll(".section"));
 const audioBtn = document.getElementById("audio-toggle");
 const themeBtn = document.getElementById("theme-toggle");
-const modeBtn = document.getElementById("mode-toggle");
+const modeSwitch = document.getElementById("mode-switch");
+const modeOptions = Array.from(modeSwitch.querySelectorAll(".mode-switch__option"));
 
 // ── Renderer ────────────────────────────────────────────
 const renderer = new THREE.WebGLRenderer({
@@ -185,8 +186,6 @@ function applyTheme(theme) {
   }
 
   themeBtn.setAttribute("aria-pressed", theme === "light" ? "true" : "false");
-  themeBtn.querySelector(".theme-toggle__label").textContent =
-    theme === "light" ? "DARK" : "LIGHT";
 }
 
 const gltfLoader = new GLTFLoader();
@@ -441,20 +440,25 @@ themeBtn.addEventListener("click", () => {
   applyTheme(currentTheme === "light" ? "dark" : "light");
 });
 
-modeBtn.addEventListener("click", () => {
-  interactiveMode = !interactiveMode;
+function setMode(mode) {
+  const next = mode === "explore";
+  if (next === interactiveMode) return;
+  interactiveMode = next;
   document.body.classList.toggle("is-interactive", interactiveMode);
-  modeBtn.setAttribute("aria-pressed", interactiveMode ? "true" : "false");
-  modeBtn.querySelector(".mode-toggle__label").textContent = interactiveMode
-    ? "BACK"
-    : "EXPLORE";
+  modeOptions.forEach((opt) =>
+    opt.classList.toggle("is-active", opt.dataset.mode === mode),
+  );
   if (interactiveMode) {
     // Snap rotation state to a clean front pose so the device "settles" facing
     // the user when entering interactive mode, regardless of scroll position.
     exploreYaw = 0;
     explorePitch = 0;
   }
-});
+}
+
+modeOptions.forEach((opt) =>
+  opt.addEventListener("click", () => setMode(opt.dataset.mode)),
+);
 
 // Pointer drag → rotate device in interactive mode. Capture the pointer so a
 // drag that wanders off the canvas still tracks until release.
@@ -574,9 +578,6 @@ function setAudio(on) {
   else pad.stop();
   audioOn = on;
   audioBtn.setAttribute("aria-pressed", audioOn ? "true" : "false");
-  audioBtn.querySelector(".audio-toggle__label").textContent = audioOn
-    ? "SOUND ON"
-    : "SOUND OFF";
 }
 
 function handleButtonAction(key) {
@@ -625,15 +626,11 @@ canvas.addEventListener("pointerup", (e) => {
 audioBtn.addEventListener("click", async () => {
   if (!audioOn) {
     await pad.start();
-    audioOn = true;
-    audioBtn.setAttribute("aria-pressed", "true");
-    audioBtn.querySelector(".audio-toggle__label").textContent = "SOUND ON";
   } else {
     pad.stop();
-    audioOn = false;
-    audioBtn.setAttribute("aria-pressed", "false");
-    audioBtn.querySelector(".audio-toggle__label").textContent = "SOUND OFF";
   }
+  audioOn = !audioOn;
+  audioBtn.setAttribute("aria-pressed", audioOn ? "true" : "false");
 });
 
 readScroll();

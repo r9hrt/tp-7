@@ -69,22 +69,114 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem 2rem;
+  gap: 1.5rem;
+  padding: 1.25rem 1.75rem;
   font-size: 0.72rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--muted);
   z-index: 20;
-  mix-blend-mode: difference;
 }
 
-.topbar__brand {
+.topbar__brand,
+.topbar__sku {
+  /* Inverts against whatever's behind so brand/SKU stay legible whether the
+     device or empty page is underneath. Controls don't get this — their pill
+     bgs would invert weirdly. */
+  mix-blend-mode: difference;
   font-weight: 500;
 }
 
 .topbar__sku {
-  font-weight: 500;
   color: var(--fg);
+}
+
+.topbar__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  pointer-events: auto;
+}
+
+/* ── Mode switch (Discover ↔ Explore) ──────────────────── */
+.mode-switch {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(127, 127, 127, 0.08);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px;
+  font-family: var(--font);
+  font-size: 0.62rem;
+  letter-spacing: 0.22em;
+  text-transform: lowercase;
+}
+
+.mode-switch__option {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.45rem 0.95rem;
+  border-radius: 999px;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  transition: color 0.25s ease, background-color 0.25s ease;
+}
+
+.mode-switch__option.is-active {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.mode-switch__option:not(.is-active):hover {
+  color: var(--fg);
+}
+
+/* ── Topbar pill toggles (theme, sound) ────────────────── */
+.topbar__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(127, 127, 127, 0.06);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.5rem 0.85rem;
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 0.62rem;
+  letter-spacing: 0.22em;
+  text-transform: lowercase;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.5s ease;
+}
+
+.topbar__toggle:hover {
+  color: var(--fg);
+  border-color: rgba(127, 127, 127, 0.32);
+}
+
+.topbar__toggle-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dim);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.topbar__toggle[aria-pressed="true"] .topbar__toggle-dot {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+#theme-toggle[aria-pressed="true"] .topbar__toggle-dot {
+  background: var(--fg);
+  box-shadow: 0 0 8px var(--fg);
 }
 
 /* ── Sections (overlaid text) ──────────────────────────── */
@@ -229,7 +321,7 @@ body {
 
 .hint {
   position: absolute;
-  bottom: 5.25rem;
+  bottom: 2.5rem;
   left: 50%;
   transform: translateX(-50%);
   font-size: 0.7rem;
@@ -274,125 +366,6 @@ body {
   background: var(--fg);
   color: var(--bg);
   transform: translateY(-1px);
-}
-
-/* ── Audio toggle ──────────────────────────────────────── */
-.audio-toggle {
-  position: fixed;
-  bottom: 1.75rem;
-  right: 2rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-  background: rgba(127, 127, 127, 0.06);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 0.55rem 0.95rem;
-  color: var(--muted);
-  font-family: var(--font);
-  font-size: 0.65rem;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  cursor: pointer;
-  z-index: 20;
-  transition: color 0.2s ease, border-color 0.2s ease, background 0.5s ease;
-}
-
-.audio-toggle:hover {
-  color: var(--fg);
-  border-color: rgba(127, 127, 127, 0.32);
-}
-
-.audio-toggle__dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--dim);
-  transition: background 0.2s ease, box-shadow 0.2s ease;
-}
-
-.audio-toggle[aria-pressed="true"] .audio-toggle__dot {
-  background: var(--accent);
-  box-shadow: 0 0 8px var(--accent);
-}
-
-/* ── Theme toggle ──────────────────────────────────────── */
-.theme-toggle {
-  position: fixed;
-  bottom: 1.75rem;
-  left: 2rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-  background: rgba(127, 127, 127, 0.06);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 0.55rem 0.95rem;
-  color: var(--muted);
-  font-family: var(--font);
-  font-size: 0.65rem;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  cursor: pointer;
-  z-index: 20;
-  transition: color 0.2s ease, border-color 0.2s ease, background 0.5s ease;
-}
-
-.theme-toggle:hover {
-  color: var(--fg);
-  border-color: rgba(127, 127, 127, 0.32);
-}
-
-.theme-toggle__dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--dim);
-  transition: background 0.2s ease, box-shadow 0.2s ease;
-}
-
-.theme-toggle[aria-pressed="true"] .theme-toggle__dot {
-  background: var(--fg);
-  box-shadow: 0 0 8px var(--fg);
-}
-
-/* ── Mode toggle (Present ↔ Explore) ───────────────────── */
-.mode-toggle {
-  position: fixed;
-  bottom: 1.75rem;
-  left: 50%;
-  transform: translateX(-50%);
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: rgba(127, 127, 127, 0.06);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 0.6rem 1.25rem;
-  color: var(--muted);
-  font-family: var(--font);
-  font-size: 0.65rem;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-  cursor: pointer;
-  z-index: 20;
-  transition: color 0.2s ease, border-color 0.2s ease, background 0.5s ease;
-}
-
-.mode-toggle:hover {
-  color: var(--fg);
-  border-color: rgba(127, 127, 127, 0.32);
-}
-
-.mode-toggle[aria-pressed="true"] {
-  color: var(--fg);
-  border-color: rgba(127, 127, 127, 0.45);
 }
 
 /* ── Interactive-mode body state ───────────────────────── */
