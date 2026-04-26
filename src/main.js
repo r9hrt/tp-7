@@ -15,7 +15,7 @@ const sections = Array.from(document.querySelectorAll(".section"));
 const audioBtn = document.getElementById("audio-toggle");
 const themeBtn = document.getElementById("theme-toggle");
 const modeSwitch = document.getElementById("mode-switch");
-const modeOptions = Array.from(modeSwitch.querySelectorAll(".mode-switch__option"));
+const modeOptions = Array.from(document.querySelectorAll(".mode-switch__option"));
 
 // ── Renderer ────────────────────────────────────────────
 const renderer = new THREE.WebGLRenderer({
