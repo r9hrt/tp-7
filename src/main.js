@@ -63,6 +63,13 @@ const modelGroup = new THREE.Group();
 scene.add(modelGroup);
 
 let model = null;
+// Looked up by name from the GLB on load. Cylinder009 is a Group whose origin
+// is exactly the disc center and whose children are the disc + inner knob +
+// the on-disc decal — rotating it spins the reel cleanly without disturbing
+// the static face plate. The mesh layout was inspected via runtime traversal.
+let reelGroup = null;
+const REEL_IDLE_SPEED = 0.004;
+const REEL_PLAY_SPEED = 0.045;
 
 // ── Theme ───────────────────────────────────────────────
 // Dark mode tints the white body toward warm graphite (so it sits in a black
@@ -174,6 +181,8 @@ gltfLoader.load(
     });
 
     applyTheme(currentTheme);
+
+    reelGroup = model.getObjectByName("Cylinder009");
 
     modelGroup.add(pivot);
     finishLoading();
@@ -341,6 +350,10 @@ function tick() {
   currentRot.y += (targetRot.y - currentRot.y) * LERP;
   currentRot.z += (targetRot.z - currentRot.z) * LERP;
   modelGroup.rotation.copy(currentRot);
+
+  if (reelGroup) {
+    reelGroup.rotation.y += audioOn ? REEL_PLAY_SPEED : REEL_IDLE_SPEED;
+  }
 
   updateSections(scrollProgress);
   updateProgressBar(scrollProgress);
