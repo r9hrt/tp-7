@@ -229,7 +229,7 @@ body {
 
 .hint {
   position: absolute;
-  bottom: 2.5rem;
+  bottom: 5.25rem;
   left: 50%;
   transform: translateX(-50%);
   font-size: 0.7rem;
