@@ -499,7 +499,7 @@ body.is-interactive .explore-hint {
   /* Solid bg from frame 1 — content (logo + bar) fades in on top of it. */
   opacity: 1;
   visibility: visible;
-  transition: opacity 1.1s ease, visibility 1.1s ease;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
 }
 
 #loader.is-hidden {

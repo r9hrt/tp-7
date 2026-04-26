@@ -251,7 +251,7 @@ gltfLoader.load(
 // Even on cached reloads, hold the bar long enough that the user reads it as
 // "loading" rather than as a flash; the brand only appears once the bar is full.
 const LOADER_MIN_BAR_MS = 1100;
-const BRAND_HOLD_MS = 1100;
+const BRAND_HOLD_MS = 2000;
 const loaderStart = performance.now();
 
 function finishLoading() {
