@@ -106,10 +106,18 @@ function applyTheme(theme) {
       const mat = child.material;
       const base = mat.userData.baseColor;
       if (base && mat.color) {
-        // Special-case the orange "M" indicator: on the real TP-7 Black it's
-        // inverted — a near-white square on the dark body.
-        if (theme === "light" && mat.name === "orange") {
+        const matName = mat.name || "";
+        // Printed decals (TP-7, 96/24, ▶, ●, ■, M, arrows…) and luminescent
+        // accents stay at their base color in light mode — on the real black
+        // device they're clean white-on-matte-black.
+        const keepBase =
+          theme === "light" &&
+          (matName === "decals" || matName === "lum-decals");
+        if (theme === "light" && matName === "orange") {
+          // The orange "M" indicator is inverted to white on the black variant.
           mat.color.setHex(0xeaeaea);
+        } else if (keepBase) {
+          mat.color.copy(base);
         } else {
           mat.color.copy(tintForTheme(theme, base));
         }
