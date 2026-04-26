@@ -319,7 +319,7 @@ const keyframes = [
   {
     // 100% — return to front, slightly above and zoomed out, CTA below
     camPos: new THREE.Vector3(0, 0.3, 4.2),
-    camLook: new THREE.Vector3(0, 0.1, 0),
+    camLook: new THREE.Vector3(0, -0.4, 0),
     rot: new THREE.Euler(0, Math.PI * 2, 0),
   },
 ];
