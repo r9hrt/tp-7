@@ -82,9 +82,9 @@ function tintForTheme(theme, baseColor) {
   const lum =
     baseColor.r * 0.299 + baseColor.g * 0.587 + baseColor.b * 0.114;
   if (theme === "light") {
-    // Crush almost every base color to near-black so the device reads as a
-    // dark silhouette on the cream background. Pure-black parts stay black.
-    const mult = lum > 0.05 ? 0.05 + (1 - lum) * 0.1 : 1;
+    // Crush almost every base color to near-black to match the matte black
+    // anodized finish of the real TP-7 Black variant. Pure-black parts stay.
+    const mult = lum > 0.05 ? 0.025 + (1 - lum) * 0.06 : 1;
     return baseColor.clone().multiplyScalar(mult);
   }
   // Dark mode: whites → graphite, darks unchanged
@@ -106,14 +106,20 @@ function applyTheme(theme) {
       const mat = child.material;
       const base = mat.userData.baseColor;
       if (base && mat.color) {
-        mat.color.copy(tintForTheme(theme, base));
+        // Special-case the orange "M" indicator: on the real TP-7 Black it's
+        // inverted — a near-white square on the dark body.
+        if (theme === "light" && mat.name === "orange") {
+          mat.color.setHex(0xeaeaea);
+        } else {
+          mat.color.copy(tintForTheme(theme, base));
+        }
       }
       const baseR = mat.userData.baseRoughness ?? 0.5;
       const baseM = mat.userData.baseMetalness ?? 0;
       if (theme === "light") {
-        mat.roughness = Math.min(1, baseR + 0.45);
-        mat.metalness = Math.max(0, baseM - 0.3);
-        mat.envMapIntensity = 0.12;
+        mat.roughness = Math.min(1, baseR + 0.55);
+        mat.metalness = Math.max(0, baseM - 0.4);
+        mat.envMapIntensity = 0.06;
       } else {
         mat.roughness = baseR;
         mat.metalness = Math.min(1, baseM + 0.1);
