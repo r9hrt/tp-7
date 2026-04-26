@@ -299,10 +299,12 @@ const keyframes = [
     rot: new THREE.Euler(-0.12, Math.PI / 16, 0),
   },
   {
-    // 60% — side panel with connectors (USB-C + 3.5mm jacks 1/2/3)
-    camPos: new THREE.Vector3(0.55, 0, 2.4),
+    // 60% — top edge view, exposing the 3.5 mm TRRS jacks + USB-C alongside
+    // the antenna nub. Camera held front-on; device tilts its top toward the
+    // viewer so the connector face becomes visible.
+    camPos: new THREE.Vector3(0.55, 0, 2.5),
     camLook: new THREE.Vector3(0.55, 0, 0),
-    rot: new THREE.Euler(0, -Math.PI / 2.05, 0),
+    rot: new THREE.Euler(0.9, 0, 0),
   },
   {
     // 80% — view from below, "Designed in Stockholm"
