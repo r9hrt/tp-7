@@ -247,20 +247,26 @@ gltfLoader.load(
   },
 );
 
-// Hold the loader for a deliberate beat even on cached reloads — short loaders
-// feel jarring because the eye barely registers them. ~1.8s gives the fade-in,
-// the bar fill, and the fade-out room to feel intentional rather than rushed.
-const LOADER_MIN_MS = 1800;
+// Loader sequence: bg → bar fades in → bar fills → brand reveals → hold → fade out.
+// Even on cached reloads, hold the bar long enough that the user reads it as
+// "loading" rather than as a flash; the brand only appears once the bar is full.
+const LOADER_MIN_BAR_MS = 1100;
+const BRAND_HOLD_MS = 1100;
 const loaderStart = performance.now();
 
 function finishLoading() {
   loaderBar.style.width = "100%";
   const elapsed = performance.now() - loaderStart;
-  const wait = Math.max(450, LOADER_MIN_MS - elapsed);
+  // Wait for the bar's width transition (~0.5s) AND the minimum bar-visible
+  // window before revealing the brand.
+  const barWait = Math.max(550, LOADER_MIN_BAR_MS - elapsed);
   setTimeout(() => {
-    loaderEl.classList.add("is-hidden");
-    sections[0].classList.add("is-active");
-  }, wait);
+    loaderEl.classList.add("is-revealed");
+    setTimeout(() => {
+      loaderEl.classList.add("is-hidden");
+      sections[0].classList.add("is-active");
+    }, BRAND_HOLD_MS);
+  }, barWait);
 }
 
 // ── Keyframes (one per section) ─────────────────────────

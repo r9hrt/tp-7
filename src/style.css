@@ -512,16 +512,6 @@ body.is-interactive .explore-hint {
   flex-direction: column;
   align-items: center;
   gap: 1.5rem;
-  /* Delay the content's fade-in so the bg lands first, then the logo + bar
-     reveal — feels less like a flash, more like a stage curtain rising. */
-  opacity: 0;
-  animation: loader-content-in 0.8s ease 0.35s forwards;
-}
-
-@keyframes loader-content-in {
-  to {
-    opacity: 1;
-  }
 }
 
 .loader__brand {
@@ -532,19 +522,13 @@ body.is-interactive .explore-hint {
   letter-spacing: 0.32em;
   text-transform: lowercase;
   color: var(--fg);
-  /* Subtle breathing while loading — multiplied with the wrapper's opacity,
-     so it stays invisible until the content fade-in lands. */
-  animation: loader-breathe 2.4s ease-in-out infinite;
+  /* Hidden until JS marks the loader .is-revealed (after the bar finishes). */
+  opacity: 0;
+  transition: opacity 0.6s ease;
 }
 
-@keyframes loader-breathe {
-  0%,
-  100% {
-    opacity: 0.55;
-  }
-  50% {
-    opacity: 1;
-  }
+#loader.is-revealed .loader__brand {
+  opacity: 1;
 }
 
 .loader__bar {
@@ -552,6 +536,15 @@ body.is-interactive .explore-hint {
   height: 1px;
   background: var(--line);
   overflow: hidden;
+  /* Slight delay so the bg lands first, then the bar reveals. */
+  opacity: 0;
+  animation: loader-bar-in 0.4s ease 0.2s forwards;
+}
+
+@keyframes loader-bar-in {
+  to {
+    opacity: 1;
+  }
 }
 
 .loader__bar span {
