@@ -84,7 +84,7 @@ function tintForTheme(theme, baseColor) {
   if (theme === "light") {
     // Crush almost every base color to near-black to match the matte black
     // anodized finish of the real TP-7 Black variant. Pure-black parts stay.
-    const mult = lum > 0.05 ? 0.025 + (1 - lum) * 0.06 : 1;
+    const mult = lum > 0.05 ? 0.012 + (1 - lum) * 0.04 : 1;
     return baseColor.clone().multiplyScalar(mult);
   }
   // Dark mode: whites → graphite, darks unchanged
@@ -117,9 +117,9 @@ function applyTheme(theme) {
       const baseR = mat.userData.baseRoughness ?? 0.5;
       const baseM = mat.userData.baseMetalness ?? 0;
       if (theme === "light") {
-        mat.roughness = Math.min(1, baseR + 0.55);
-        mat.metalness = Math.max(0, baseM - 0.4);
-        mat.envMapIntensity = 0.06;
+        mat.roughness = Math.min(1, baseR + 0.7);
+        mat.metalness = Math.max(0, baseM - 0.5);
+        mat.envMapIntensity = 0.04;
       } else {
         mat.roughness = baseR;
         mat.metalness = Math.min(1, baseM + 0.1);
@@ -131,12 +131,12 @@ function applyTheme(theme) {
   // Lighting: in light mode the warm rim reads orange against a cream bg, and
   // the dark device needs a softer key + extra ambient to keep edges visible.
   if (theme === "light") {
-    ambient.intensity = 0.65;
-    keyLight.intensity = 0.7;
-    rimLight.intensity = 0.25;
+    ambient.intensity = 0.45;
+    keyLight.intensity = 0.55;
+    rimLight.intensity = 0.18;
     rimLight.color.setHex(0xffffff);
-    fillLight.intensity = 0.18;
-    renderer.toneMappingExposure = 1.0;
+    fillLight.intensity = 0.12;
+    renderer.toneMappingExposure = 0.82;
   } else {
     ambient.intensity = 0.18;
     keyLight.intensity = 1.1;
