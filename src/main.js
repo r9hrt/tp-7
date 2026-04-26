@@ -78,6 +78,8 @@ const REEL_PLAY_SPEED = 0.045;
 // at load time, so each tint is computed from the BASE color, not compounded.
 let currentTheme = "dark";
 
+const DECAL_MATS = new Set(["decals", "lum-decals"]);
+
 function tintForTheme(theme, baseColor) {
   const lum =
     baseColor.r * 0.299 + baseColor.g * 0.587 + baseColor.b * 0.114;
@@ -105,29 +107,55 @@ function applyTheme(theme) {
       if (!child.isMesh || !child.material) return;
       const mat = child.material;
       const base = mat.userData.baseColor;
+      const matName = mat.name || "";
+      const isDecal = DECAL_MATS.has(matName);
+
       if (base && mat.color) {
-        const matName = mat.name || "";
-        // Printed decals (TP-7, 96/24, ▶, ●, ■, M, arrows…) and luminescent
-        // accents stay at their base color in light mode — on the real black
-        // device they're clean white-on-matte-black.
-        const keepBase =
-          theme === "light" &&
-          (matName === "decals" || matName === "lum-decals");
         if (theme === "light" && matName === "orange") {
           // The orange "M" indicator is inverted to white on the black variant.
           mat.color.setHex(0xeaeaea);
-        } else if (keepBase) {
+        } else if (theme === "light" && matName === "decals") {
+          // Force "decals" plane color to white in light mode so the printed
+          // icons read as clean white over the matte-black body.
+          mat.color.setHex(0xffffff);
+        } else if (theme === "light" && matName === "lum-decals") {
+          // Keep lum-decals at base (their emissive map carries the visual).
           mat.color.copy(base);
         } else {
           mat.color.copy(tintForTheme(theme, base));
         }
       }
+
+      // Boost emissive on the printed "decals" material only, so icons (TP-7,
+      // 96/24, ▶, ●, ■, …) read as bright white against the dim lighting in
+      // light mode. lum-decals are left alone — overriding their emissive
+      // also turns the red record lamp white, which we don't want.
+      if (mat.emissive) {
+        const baseE = mat.userData.baseEmissive;
+        const baseEI = mat.userData.baseEmissiveIntensity ?? 1;
+        if (theme === "light" && matName === "decals") {
+          mat.emissive.setHex(0xffffff);
+          mat.emissiveIntensity = 0.7;
+        } else if (baseE) {
+          mat.emissive.copy(baseE);
+          mat.emissiveIntensity = baseEI;
+        }
+      }
+
       const baseR = mat.userData.baseRoughness ?? 0.5;
       const baseM = mat.userData.baseMetalness ?? 0;
       if (theme === "light") {
-        mat.roughness = Math.min(1, baseR + 0.7);
-        mat.metalness = Math.max(0, baseM - 0.5);
-        mat.envMapIntensity = 0.04;
+        if (isDecal) {
+          // Keep decals near their original PBR knobs — overriding them kills
+          // the icon contrast against the dark body.
+          mat.roughness = baseR;
+          mat.metalness = baseM;
+          mat.envMapIntensity = 0.4;
+        } else {
+          mat.roughness = Math.min(1, baseR + 0.7);
+          mat.metalness = Math.max(0, baseM - 0.5);
+          mat.envMapIntensity = 0.04;
+        }
       } else {
         mat.roughness = baseR;
         mat.metalness = Math.min(1, baseM + 0.1);
@@ -189,6 +217,10 @@ gltfLoader.load(
       const mat = child.material;
       if (mat.color) {
         mat.userData.baseColor = mat.color.clone();
+      }
+      if (mat.emissive) {
+        mat.userData.baseEmissive = mat.emissive.clone();
+        mat.userData.baseEmissiveIntensity = mat.emissiveIntensity ?? 1;
       }
       mat.userData.baseRoughness = mat.roughness ?? 0.5;
       mat.userData.baseMetalness = mat.metalness ?? 0;
