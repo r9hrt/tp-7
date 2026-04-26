@@ -494,28 +494,34 @@ body.is-interactive .explore-hint {
   background: var(--bg);
   z-index: 100;
   display: flex;
-  flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 1.5rem;
-  /* Defaults to visible. Fades in from 0 via the keyframe animation (without
-     `forwards` so it releases control once done), then fades out via the
-     transition when .is-hidden lands. */
+  /* Solid bg from frame 1 — content (logo + bar) fades in on top of it. */
   opacity: 1;
   visibility: visible;
-  animation: loader-fade-in 0.7s ease;
   transition: opacity 1.1s ease, visibility 1.1s ease;
-}
-
-@keyframes loader-fade-in {
-  from {
-    opacity: 0;
-  }
 }
 
 #loader.is-hidden {
   opacity: 0;
   visibility: hidden;
+}
+
+.loader__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  /* Delay the content's fade-in so the bg lands first, then the logo + bar
+     reveal — feels less like a flash, more like a stage curtain rising. */
+  opacity: 0;
+  animation: loader-content-in 0.8s ease 0.35s forwards;
+}
+
+@keyframes loader-content-in {
+  to {
+    opacity: 1;
+  }
 }
 
 .loader__brand {
@@ -526,7 +532,8 @@ body.is-interactive .explore-hint {
   letter-spacing: 0.32em;
   text-transform: lowercase;
   color: var(--fg);
-  /* Slow, subtle breathing while loading — calms the wait. */
+  /* Subtle breathing while loading — multiplied with the wrapper's opacity,
+     so it stays invisible until the content fade-in lands. */
   animation: loader-breathe 2.4s ease-in-out infinite;
 }
 
