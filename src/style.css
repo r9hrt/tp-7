@@ -505,6 +505,7 @@ body.is-interactive .explore-hint {
 
 .scramble-glyph {
   opacity: 0.35;
+  pointer-events: none;
 }
 
 .loader__bar {

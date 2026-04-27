@@ -334,12 +334,18 @@ topbarBrand.addEventListener("click", () => {
   window.scrollTo({ top: 0, behavior: "smooth" });
 });
 
-// Scramble on hover for all topbar controls
+// Scramble on hover for all topbar controls.
+// Width is locked before the animation starts so the button doesn't resize,
+// and released once the text is resolved.
 function addHoverScramble(el) {
   const s = new TextScramble(el);
   const text = el.textContent.trim();
   el.addEventListener("mouseenter", () => {
-    if (!s.running) s.setText(text);
+    if (s.running) return;
+    el.style.minWidth = el.offsetWidth + "px";
+    s.setText(text).then(() => {
+      el.style.minWidth = "";
+    });
   });
 }
 document.querySelectorAll(".mode-switch__option").forEach(addHoverScramble);
