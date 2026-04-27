@@ -318,20 +318,21 @@ const loaderStart = performance.now();
 
 const loaderBrand = loaderEl.querySelector(".loader__brand");
 const scrambler = new TextScramble(loaderBrand);
+const topbarBrand = document.querySelector(".topbar__brand");
+const topbarScrambler = new TextScramble(topbarBrand);
 
 function finishLoading() {
   loaderBar.style.width = "100%";
   const elapsed = performance.now() - loaderStart;
-  // Wait for the bar's width transition (~1.1s) AND the minimum bar-visible
-  // window before revealing the brand.
   const barWait = Math.max(1150, LOADER_MIN_BAR_MS - elapsed);
   setTimeout(() => {
     loaderEl.classList.add("is-revealed");
-    // Scramble runs as the brand fades in — decodes "teenage engineering"
     scrambler.setText("teenage engineering");
     setTimeout(() => {
       loaderEl.classList.add("is-hidden");
       sections[0].classList.add("is-active");
+      // Scramble the topbar brand as the loader fades out
+      topbarScrambler.setText("teenage engineering");
     }, BRAND_HOLD_MS);
   }, barWait);
 }
