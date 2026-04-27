@@ -36,6 +36,10 @@ class TextScramble {
     });
   }
 
+  get running() {
+    return this.raf !== null;
+  }
+
   update() {
     let out = "";
     let done = 0;
@@ -55,6 +59,7 @@ class TextScramble {
     this.el.innerHTML = out;
     if (done === this.queue.length) {
       this.el.textContent = this.queue.map((q) => q.to).join("");
+      this.raf = null;
       this.resolve();
     } else {
       this.frame++;
@@ -320,6 +325,14 @@ const loaderBrand = loaderEl.querySelector(".loader__brand");
 const scrambler = new TextScramble(loaderBrand);
 const topbarBrand = document.querySelector(".topbar__brand");
 const topbarScrambler = new TextScramble(topbarBrand);
+
+// Hover → scramble; click → scroll to top
+topbarBrand.addEventListener("mouseenter", () => {
+  if (!topbarScrambler.running) topbarScrambler.setText("teenage engineering");
+});
+topbarBrand.addEventListener("click", () => {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
 
 function finishLoading() {
   loaderBar.style.width = "100%";

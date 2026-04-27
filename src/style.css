@@ -84,6 +84,8 @@ body {
      bgs would invert weirdly. */
   mix-blend-mode: difference;
   font-weight: 500;
+  cursor: pointer;
+  user-select: none;
 }
 
 .topbar__controls {
