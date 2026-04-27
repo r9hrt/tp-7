@@ -91,5 +91,16 @@ export function createAmbientPad() {
     }, 700);
   }
 
-  return { start, stop };
+  // Smoothly ramp master volume to `value` (0–1) over ~150 ms.
+  // Safe to call at any time — no-op when the pad is not running.
+  function setGain(value) {
+    if (!ctx || !master) return;
+    const v = Math.max(0, Math.min(1, value));
+    const now = ctx.currentTime;
+    master.gain.cancelScheduledValues(now);
+    master.gain.setValueAtTime(master.gain.value, now);
+    master.gain.linearRampToValueAtTime(v, now + 0.15);
+  }
+
+  return { start, stop, setGain };
 }

@@ -25,7 +25,7 @@ class TextScramble {
     this.queue = Array.from({ length: len }, (_, i) => ({
       to: newText[i],
       start: Math.floor(Math.random() * 12),
-      end: Math.floor(Math.random() * 12) + 14 + i * 1.2 | 0,
+      end: Math.floor(Math.random() * 12) + 14 + (i * 1.2) | 0,
       char: "",
     }));
     this.frame = 0;
@@ -75,7 +75,6 @@ const progressBar = document.getElementById("progress-bar");
 const sections = Array.from(document.querySelectorAll(".section"));
 const audioBtn = document.getElementById("audio-toggle");
 const themeBtn = document.getElementById("theme-toggle");
-const modeSwitch = document.getElementById("mode-switch");
 const modeOptions = Array.from(document.querySelectorAll(".mode-switch__option"));
 
 // ── Renderer ────────────────────────────────────────────
@@ -129,33 +128,25 @@ const modelGroup = new THREE.Group();
 scene.add(modelGroup);
 
 let model = null;
-// Looked up by name from the GLB on load. Cylinder009 is a Group whose origin
-// is exactly the disc center and whose children are the disc + inner knob +
-// the on-disc decal — rotating it spins the reel cleanly without disturbing
-// the static face plate. The mesh layout was inspected via runtime traversal.
+// Cylinder009 is a Group whose origin is at the disc center; rotating it
+// spins the reel without disturbing the static face plate.
 let reelGroup = null;
-const REEL_IDLE_SPEED = 0.004;
-const REEL_PLAY_SPEED = 0.045;
+const REEL_IDLE_SPEED  = 0.004;   // ambient slow drift
+const REEL_PLAY_SPEED  = 0.045;   // recording / playback
+const REEL_BOOST_SPEED = 0.18;    // rocker fast-forward / rewind
+const REEL_BOOST_MS    = 1200;    // how long a rocker boost lasts
 
 // ── Theme ───────────────────────────────────────────────
-// Dark mode tints the white body toward warm graphite (so it sits in a black
-// scene). Light mode pushes the body to near-black so the device reads as a
-// solid dark object on a light page. Per-material original colors are cached
-// at load time, so each tint is computed from the BASE color, not compounded.
 let currentTheme = "dark";
-
 const DECAL_MATS = new Set(["decals", "lum-decals"]);
 
 function tintForTheme(theme, baseColor) {
   const lum =
     baseColor.r * 0.299 + baseColor.g * 0.587 + baseColor.b * 0.114;
   if (theme === "light") {
-    // Crush almost every base color to near-black to match the matte black
-    // anodized finish of the real TP-7 Black variant. Pure-black parts stay.
     const mult = lum > 0.05 ? 0.012 + (1 - lum) * 0.04 : 1;
     return baseColor.clone().multiplyScalar(mult);
   }
-  // Dark mode: whites → graphite, darks unchanged
   const mult = 1 - lum * 0.58;
   return baseColor.clone().multiplyScalar(mult);
 }
@@ -164,10 +155,6 @@ function applyTheme(theme) {
   currentTheme = theme;
   document.documentElement.dataset.theme = theme;
 
-  // Re-derive material colors AND PBR knobs from cached base values. In light
-  // mode we crank roughness up + add metalness offset only slightly, and we
-  // drop envMapIntensity hard so the metallic body doesn't reflect the studio
-  // env back as bright highlights — that's what kept it looking white before.
   if (model) {
     model.traverse((child) => {
       if (!child.isMesh || !child.material) return;
@@ -178,28 +165,18 @@ function applyTheme(theme) {
 
       if (base && mat.color) {
         if (matName === "orange") {
-          // The "orange" material maps to the leather back panel (it carries
-          // the leather normal map). Real TP-7 ships with black leather, so
-          // force it dark in both themes regardless of the GLB's base orange.
           mat.color.setHex(0x0e0e0e);
         } else if (theme === "light" && matName === "decals") {
-          // Force "decals" plane color to white in light mode so the printed
-          // icons read as clean white over the matte-black body.
           mat.color.setHex(0xffffff);
         } else if (theme === "light" && matName === "lum-decals") {
-          // Keep lum-decals at base (their emissive map carries the visual).
           mat.color.copy(base);
         } else {
           mat.color.copy(tintForTheme(theme, base));
         }
       }
 
-      // Boost emissive on the printed "decals" material only, so icons (TP-7,
-      // 96/24, ▶, ●, ■, …) read as bright white against the dim lighting in
-      // light mode. lum-decals are left alone — overriding their emissive
-      // also turns the red record lamp white, which we don't want.
       if (mat.emissive) {
-        const baseE = mat.userData.baseEmissive;
+        const baseE  = mat.userData.baseEmissive;
         const baseEI = mat.userData.baseEmissiveIntensity ?? 1;
         if (theme === "light" && matName === "decals") {
           mat.emissive.setHex(0xffffff);
@@ -214,8 +191,6 @@ function applyTheme(theme) {
       const baseM = mat.userData.baseMetalness ?? 0;
       if (theme === "light") {
         if (isDecal) {
-          // Keep decals near their original PBR knobs — overriding them kills
-          // the icon contrast against the dark body.
           mat.roughness = baseR;
           mat.metalness = baseM;
           mat.envMapIntensity = 0.4;
@@ -232,8 +207,6 @@ function applyTheme(theme) {
     });
   }
 
-  // Lighting: in light mode the warm rim reads orange against a cream bg, and
-  // the dark device needs a softer key + extra ambient to keep edges visible.
   if (theme === "light") {
     ambient.intensity = 0.45;
     keyLight.intensity = 0.55;
@@ -259,16 +232,14 @@ gltfLoader.load(
   (gltf) => {
     model = gltf.scene;
 
-    // Wrap the model in a pivot so we can center vertices then scale uniformly
-    // around the origin without the offset/scale ordering bug.
-    const box = new THREE.Box3().setFromObject(model);
-    const size = box.getSize(new THREE.Vector3());
+    const box    = new THREE.Box3().setFromObject(model);
+    const size   = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
     model.position.sub(center);
 
     const pivot = new THREE.Group();
     pivot.add(model);
-    const maxDim = Math.max(size.x, size.y, size.z);
+    const maxDim     = Math.max(size.x, size.y, size.z);
     const targetSize = 1.5;
     pivot.scale.setScalar(targetSize / maxDim);
 
@@ -276,16 +247,14 @@ gltfLoader.load(
     // +Z (camera), long axis vertical.
     pivot.rotation.x = Math.PI / 2;
 
-    // Cache base PBR properties once, so we can re-derive theme-specific
-    // tints/material settings without compounding mutations.
+    // Cache base PBR properties once so we can re-derive theme-specific
+    // tints without compounding mutations.
     model.traverse((child) => {
       if (!child.isMesh || !child.material) return;
       const mat = child.material;
-      if (mat.color) {
-        mat.userData.baseColor = mat.color.clone();
-      }
+      if (mat.color) mat.userData.baseColor = mat.color.clone();
       if (mat.emissive) {
-        mat.userData.baseEmissive = mat.emissive.clone();
+        mat.userData.baseEmissive          = mat.emissive.clone();
         mat.userData.baseEmissiveIntensity = mat.emissiveIntensity ?? 1;
       }
       mat.userData.baseRoughness = mat.roughness ?? 0.5;
@@ -293,6 +262,18 @@ gltfLoader.load(
     });
 
     applyTheme(currentTheme);
+
+    // Collect the lum-decals material — its emissiveIntensity is the record LED.
+    // Multiple meshes may share this Three.js material object; one ref suffices.
+    model.traverse((child) => {
+      if (
+        child.isMesh &&
+        child.material &&
+        child.material.name === "lum-decals"
+      ) {
+        ledMaterial = child.material;
+      }
+    });
 
     reelGroup = model.getObjectByName("Cylinder009");
 
@@ -311,22 +292,16 @@ gltfLoader.load(
   },
 );
 
-// Loader sequence: bg → bar fades in → bar fills → brand reveals → hold → fade out.
-// Even on cached reloads, hold the bar long enough that the user reads it as
-// "loading" rather than as a flash; the brand only appears once the bar is full.
+// ── Loader sequence ─────────────────────────────────────
 const LOADER_MIN_BAR_MS = 1700;
-// Time from the moment "is-revealed" is added to the moment fade-out begins.
-// Includes the brand's 0.6s fade-in, so the figé/full-opacity window is the
-// remainder (~2.5s).
-const BRAND_HOLD_MS = 3100;
-const loaderStart = performance.now();
+const BRAND_HOLD_MS     = 3100;
+const loaderStart       = performance.now();
 
-const loaderBrand = loaderEl.querySelector(".loader__brand");
-const scrambler = new TextScramble(loaderBrand);
-const topbarBrand = document.querySelector(".topbar__brand");
+const loaderBrand    = loaderEl.querySelector(".loader__brand");
+const scrambler      = new TextScramble(loaderBrand);
+const topbarBrand    = document.querySelector(".topbar__brand");
 const topbarScrambler = new TextScramble(topbarBrand);
 
-// Hover → scramble; click → scroll to top
 topbarBrand.addEventListener("mouseenter", () => {
   if (!topbarScrambler.running) topbarScrambler.setText("teenage engineering");
 });
@@ -335,17 +310,14 @@ topbarBrand.addEventListener("click", () => {
 });
 
 // Scramble on hover for all topbar controls.
-// Width is locked before the animation starts so the button doesn't resize,
-// and released once the text is resolved.
+// Width is locked before the animation so the button doesn't resize.
 function addHoverScramble(el) {
-  const s = new TextScramble(el);
+  const s    = new TextScramble(el);
   const text = el.textContent.trim();
   el.addEventListener("mouseenter", () => {
     if (s.running) return;
     el.style.minWidth = el.offsetWidth + "px";
-    s.setText(text).then(() => {
-      el.style.minWidth = "";
-    });
+    s.setText(text).then(() => { el.style.minWidth = ""; });
   });
 }
 document.querySelectorAll(".mode-switch__option").forEach(addHoverScramble);
@@ -361,84 +333,145 @@ function finishLoading() {
     setTimeout(() => {
       loaderEl.classList.add("is-hidden");
       sections[0].classList.add("is-active");
-      // Scramble the topbar brand as the loader fades out
       topbarScrambler.setText("teenage engineering");
     }, BRAND_HOLD_MS);
   }, barWait);
 }
 
 // ── Keyframes (one per section) ─────────────────────────
-// Each keyframe drives camera (pos + look) and the model group rotation.
-// Camera offset-x is also used to push the model off-center so overlay text
-// has room — that's what makes Apple-style product pages feel composed.
-// Each keyframe drives camera (pos + look) and the model group rotation.
-// Device is portrait: long axis vertical, working face at +Z, so rot.y spins
-// it around its own vertical (like turning the device in your hand) and
-// rot.x tilts the top toward / away from camera.
 const keyframes = [
   {
     // 0% — front view, model right of frame, hero text left
-    camPos: new THREE.Vector3(-0.55, 0, 3.1),
+    camPos:  new THREE.Vector3(-0.55, 0, 3.1),
     camLook: new THREE.Vector3(-0.55, 0, 0),
-    rot: new THREE.Euler(0, 0, 0),
+    rot:     new THREE.Euler(0, 0, 0),
   },
   {
     // 20% — gentle rotation right, model left of frame, text right
-    camPos: new THREE.Vector3(0.55, 0, 3.0),
+    camPos:  new THREE.Vector3(0.55, 0, 3.0),
     camLook: new THREE.Vector3(0.55, 0, 0),
-    rot: new THREE.Euler(0, Math.PI / 7, 0),
+    rot:     new THREE.Euler(0, Math.PI / 7, 0),
   },
   {
     // 40% — close zoom on the screen (top of the device) + dial
-    camPos: new THREE.Vector3(-0.5, 0.45, 2.0),
+    camPos:  new THREE.Vector3(-0.5, 0.45, 2.0),
     camLook: new THREE.Vector3(-0.5, 0.4, 0),
-    rot: new THREE.Euler(-0.12, Math.PI / 16, 0),
+    rot:     new THREE.Euler(-0.12, Math.PI / 16, 0),
   },
   {
-    // 60% — device tilted nearly flat toward the viewer so the top edge
-    // (3 × 3.5 mm TRRS jacks + USB-C) reads almost straight-on. Camera lifted
-    // slightly to look down on the connector face.
-    camPos: new THREE.Vector3(0.55, 0.4, 2.4),
+    // 60% — device nearly flat, top edge (TRRS jacks + USB-C) faces camera
+    camPos:  new THREE.Vector3(0.55, 0.4, 2.4),
     camLook: new THREE.Vector3(0.55, 0.1, 0),
-    rot: new THREE.Euler(Math.PI / 2, Math.PI, 0),
+    rot:     new THREE.Euler(Math.PI / 2, Math.PI, 0),
   },
   {
     // 80% — view from below, "Designed in Stockholm"
-    camPos: new THREE.Vector3(0, -0.85, 2.6),
+    camPos:  new THREE.Vector3(0, -0.85, 2.6),
     camLook: new THREE.Vector3(0, 0, 0),
-    rot: new THREE.Euler(0.4, Math.PI * 1.35, 0),
+    rot:     new THREE.Euler(0.4, Math.PI * 1.35, 0),
   },
   {
     // 100% — return to front, slightly above and zoomed out, CTA below
-    camPos: new THREE.Vector3(0, 0.3, 4.2),
+    camPos:  new THREE.Vector3(0, 0.3, 4.2),
     camLook: new THREE.Vector3(0, -0.2, 0),
-    rot: new THREE.Euler(0, Math.PI * 2, 0),
+    rot:     new THREE.Euler(0, Math.PI * 2, 0),
   },
 ];
 
 // ── Scroll driver ───────────────────────────────────────
 let scrollProgress = 0;
-const targetCamPos = new THREE.Vector3().copy(keyframes[0].camPos);
+const targetCamPos  = new THREE.Vector3().copy(keyframes[0].camPos);
 const targetCamLook = new THREE.Vector3().copy(keyframes[0].camLook);
-const targetRot = new THREE.Euler().copy(keyframes[0].rot);
-
+const targetRot     = new THREE.Euler().copy(keyframes[0].rot);
 const currentCamLook = new THREE.Vector3().copy(keyframes[0].camLook);
-const currentRot = new THREE.Euler().copy(keyframes[0].rot);
-
+const currentRot     = new THREE.Euler().copy(keyframes[0].rot);
 const LERP = 0.07;
 
 // ── Interactive (explore) mode ──────────────────────────
-// In explore mode, scroll-driven keyframes are bypassed: the camera holds a
-// hero pose centered on the device, and the model's rotation is driven by
-// pointer drag. Lets the user inspect the device freely. Subsequent work will
-// add raycaster-driven control interactions on top of this.
 let interactiveMode = false;
 const explorePose = {
-  camPos: new THREE.Vector3(0, 0, 2.6),
+  camPos:  new THREE.Vector3(0, 0, 2.6),
   camLook: new THREE.Vector3(0, 0, 0),
 };
-let exploreYaw = 0;
+let exploreYaw   = 0;
 let explorePitch = 0;
+
+// ── Device state machine ─────────────────────────────────
+// Mirrors the real TP-7 transport behavior:
+//   IDLE      → reel slow-idle, LED off
+//   ARMED     → reel stops, LED slow-flash (1 Hz) — ready to record
+//   RECORDING → reel fast, LED solid bright — capturing audio
+//   PLAYING   → reel fast, LED off — playing back
+const DS = Object.freeze({ IDLE: 0, ARMED: 1, RECORDING: 2, PLAYING: 3 });
+let deviceState    = DS.IDLE;
+let padGain        = 0.55;     // master volume 0–1; user-adjustable with +/−
+let reelBoostUntil = 0;        // timestamp: rocker boost ends here
+let reelDragging   = false;    // user is manually spinning the disc
+
+// LED: the lum-decals material's emissiveIntensity drives the record lamp.
+let ledMaterial   = null;
+let ledFlashTimer = null;
+let ledFlashPhase = false;
+
+function setLedIntensity(v) {
+  if (ledMaterial) ledMaterial.emissiveIntensity = v;
+}
+
+function stopLedFlash() {
+  if (ledFlashTimer) { clearInterval(ledFlashTimer); ledFlashTimer = null; }
+}
+
+// hz = full blink cycles per second (each cycle = one on + one off interval)
+function startLedFlash(hz = 1) {
+  stopLedFlash();
+  ledFlashPhase = false;
+  setLedIntensity(0);
+  ledFlashTimer = setInterval(() => {
+    ledFlashPhase = !ledFlashPhase;
+    setLedIntensity(ledFlashPhase ? 2.5 : 0);
+  }, 1000 / (hz * 2));
+}
+
+// Central state-transition function — only place that mutates deviceState.
+function transitionState(next) {
+  if (deviceState === next) return;
+  deviceState = next;
+  stopLedFlash();
+
+  switch (next) {
+    case DS.IDLE:
+      setLedIntensity(0);
+      if (audioOn) {
+        pad.stop();
+        audioOn = false;
+        audioBtn.setAttribute("aria-pressed", "false");
+      }
+      break;
+
+    case DS.ARMED:
+      // Keep audio running if it was already on; just flash the LED.
+      startLedFlash(1);
+      break;
+
+    case DS.RECORDING:
+      setLedIntensity(3.0); // bright solid red
+      if (!audioOn) {
+        pad.start().then(() => pad.setGain(padGain));
+        audioOn = true;
+        audioBtn.setAttribute("aria-pressed", "true");
+      }
+      break;
+
+    case DS.PLAYING:
+      setLedIntensity(0);
+      if (!audioOn) {
+        pad.start().then(() => pad.setGain(padGain));
+        audioOn = true;
+        audioBtn.setAttribute("aria-pressed", "true");
+      }
+      break;
+  }
+}
 
 function readScroll() {
   const max = document.documentElement.scrollHeight - window.innerHeight;
@@ -461,9 +494,9 @@ function updateTargets(progress) {
   }
 
   const segCount = keyframes.length - 1;
-  const scaled = progress * segCount;
-  const i = Math.min(segCount - 1, Math.floor(scaled));
-  const t = smoothstep(scaled - i);
+  const scaled   = progress * segCount;
+  const i        = Math.min(segCount - 1, Math.floor(scaled));
+  const t        = smoothstep(scaled - i);
 
   const a = keyframes[i];
   const b = keyframes[i + 1];
@@ -478,16 +511,12 @@ function updateTargets(progress) {
 }
 
 function updateSections(progress) {
-  // Pick the single section nearest to the current scroll progress and only
-  // activate that one — so two overlay texts never share the screen.
-  const n = sections.length;
+  const n    = sections.length;
   const step = 1 / (n - 1);
 
   let activeIndex = Math.round(progress / step);
   activeIndex = Math.max(0, Math.min(n - 1, activeIndex));
 
-  // Add a small dead-band near each section's center so the text holds put,
-  // and fades cleanly during the transition between adjacent keyframes.
   const center = activeIndex * step;
   const within = Math.abs(progress - center) <= step * 0.4;
 
@@ -513,13 +542,22 @@ function tick() {
   currentRot.z += (targetRot.z - currentRot.z) * LERP;
   modelGroup.rotation.copy(currentRot);
 
-  if (reelGroup) {
-    reelGroup.rotation.y += audioOn ? REEL_PLAY_SPEED : REEL_IDLE_SPEED;
+  // Reel speed depends on device state + temporary rocker boost
+  if (reelGroup && !reelDragging) {
+    const boosted = performance.now() < reelBoostUntil;
+    let speed;
+    if (deviceState === DS.ARMED) {
+      speed = 0; // tape pauses while armed / cued
+    } else if (deviceState === DS.RECORDING || deviceState === DS.PLAYING) {
+      speed = boosted ? REEL_BOOST_SPEED : REEL_PLAY_SPEED;
+    } else {
+      speed = boosted ? REEL_BOOST_SPEED : REEL_IDLE_SPEED;
+    }
+    reelGroup.rotation.y += speed;
   }
 
   updateSections(scrollProgress);
   updateProgressBar(scrollProgress);
-
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
 }
@@ -533,7 +571,7 @@ window.addEventListener("resize", () => {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 });
 
-// ── Ambient audio ───────────────────────────────────────
+// ── Audio ────────────────────────────────────────────────
 const pad = createAmbientPad();
 let audioOn = false;
 
@@ -550,10 +588,15 @@ function setMode(mode) {
     opt.classList.toggle("is-active", opt.dataset.mode === mode),
   );
   if (interactiveMode) {
-    // Snap rotation state to a clean front pose so the device "settles" facing
-    // the user when entering interactive mode, regardless of scroll position.
-    exploreYaw = 0;
+    // Snap to clean front pose when entering explore mode
+    exploreYaw   = 0;
     explorePitch = 0;
+  } else {
+    // Reset cursor and device state when leaving explore mode.
+    // transitionState(IDLE) is a no-op if device was never used — so audio
+    // started from the topbar toggle is unaffected.
+    canvas.style.cursor = "";
+    transitionState(DS.IDLE);
   }
 }
 
@@ -561,71 +604,29 @@ modeOptions.forEach((opt) =>
   opt.addEventListener("click", () => setMode(opt.dataset.mode)),
 );
 
-// Pointer drag → rotate device in interactive mode. Capture the pointer so a
-// drag that wanders off the canvas still tracks until release.
-let dragging = false;
-let lastPointerX = 0;
-let lastPointerY = 0;
-
-canvas.addEventListener("pointerdown", (e) => {
-  if (!interactiveMode) return;
-  dragging = true;
-  lastPointerX = e.clientX;
-  lastPointerY = e.clientY;
-  canvas.setPointerCapture(e.pointerId);
-});
-
-canvas.addEventListener("pointermove", (e) => {
-  if (!dragging) return;
-  const dx = e.clientX - lastPointerX;
-  const dy = e.clientY - lastPointerY;
-  lastPointerX = e.clientX;
-  lastPointerY = e.clientY;
-  exploreYaw += dx * 0.006;
-  // Clamp pitch so the user can tilt up/down a bit without flipping the model.
-  explorePitch = Math.max(-0.7, Math.min(0.7, explorePitch + dy * 0.005));
-});
-
-function endDrag(e) {
-  if (!dragging) return;
-  dragging = false;
-  try {
-    canvas.releasePointerCapture(e.pointerId);
-  } catch (_) {}
-}
-
-canvas.addEventListener("pointerup", endDrag);
-canvas.addEventListener("pointercancel", endDrag);
-
-// ── Device interactions ─────────────────────────────────
-// In explore mode, a click on the canvas fires a raycast against the device.
-// If the hit mesh is part of one of the three transport buttons at the bottom
-// of the device, we play a short press animation (translate the button down
-// then bounce back) and route the press to the audio engine. Mesh names below
-// were identified by inspecting the loaded GLB at runtime — record/play/stop
-// each consist of a base + cap mesh that move together.
-// Mesh names mapped to controls. The bottom transport trio (rec/play/stop)
-// each has a base + cap mesh that move together. Side controls (rocker, +/-,
-// knob) get press feedback only; their audio behavior would need real
-// scrubbing/level controls that the synthesized pad doesn't expose.
+// ── Device interaction mesh map ─────────────────────────
+// Mesh names were identified by inspecting the loaded GLB at runtime.
+// Transport buttons each have a base + cap mesh that move together.
 const BUTTON_GROUPS = {
-  rec: { meshes: ["Cube002", "Cube009", "Plane005"], action: "rec" },
-  play: { meshes: ["Cube003", "Cube010"], action: "play" },
-  stop: { meshes: ["Cube004", "Cube011"], action: "stop" },
-  plus: { meshes: ["Cylinder003"], action: "plus" },
-  minus: { meshes: ["Cylinder002"], action: "minus" },
-  rocker: { meshes: ["Cube001_1", "Cube001_2"], action: "rocker" },
-  knob: {
-    meshes: ["Cylinder_1", "Cylinder_2", "Cylinder_3", "Cylinder_4"],
-    action: "knob",
-  },
-  // Reel intentionally not mapped: its mesh pivots aren't at the disc center
-  // so a single rotation flings them out into space. A real reel interaction
-  // will need either a parented spin Group or per-mesh pivot recentering.
+  rec:    { meshes: ["Cube002", "Cube009", "Plane005"], action: "rec" },
+  play:   { meshes: ["Cube003", "Cube010"],             action: "play" },
+  stop:   { meshes: ["Cube004", "Cube011"],             action: "stop" },
+  plus:   { meshes: ["Cylinder003"],                    action: "plus" },
+  minus:  { meshes: ["Cylinder002"],                    action: "minus" },
+  rocker: { meshes: ["Cube001_1", "Cube001_2"],         action: "rocker" },
+  knob:   { meshes: ["Cylinder_1", "Cylinder_2", "Cylinder_3", "Cylinder_4"], action: "knob" },
 };
-const PRESS_DEPTH = 0.012;
+const PRESS_DEPTH   = 0.012;
 const PRESS_DOWN_MS = 80;
-const PRESS_UP_MS = 180;
+const PRESS_UP_MS   = 180;
+const VOL_STEP      = 0.12;
+const VOL_MIN       = 0.05;
+const VOL_MAX       = 0.90;
+
+// Flat set of all interactive mesh names — used for cursor detection.
+const INTERACTIVE_MESH_NAMES = new Set(
+  Object.values(BUTTON_GROUPS).flatMap((g) => g.meshes),
+);
 
 function buttonGroupForMesh(name) {
   for (const [key, group] of Object.entries(BUTTON_GROUPS)) {
@@ -637,25 +638,21 @@ function buttonGroupForMesh(name) {
 function meshesForGroup(key) {
   if (!model) return [];
   const names = BUTTON_GROUPS[key].meshes;
-  const out = [];
-  model.traverse((o) => {
-    if (o.isMesh && names.includes(o.name)) out.push(o);
-  });
+  const out   = [];
+  model.traverse((o) => { if (o.isMesh && names.includes(o.name)) out.push(o); });
   return out;
 }
 
+// Short press-depth animation: translate down then bounce back.
+// Local −Y maps to "into the device face" after the pivot's x = π/2 rotation.
 function pressButton(key) {
   const meshes = meshesForGroup(key);
-  if (meshes.length === 0) return;
-  // Cache the resting Y position once per mesh so repeated presses always
-  // animate from the same baseline regardless of in-flight animations.
+  if (!meshes.length) return;
   meshes.forEach((m) => {
     if (m.userData.baseY === undefined) m.userData.baseY = m.position.y;
   });
   const start = performance.now();
   const total = PRESS_DOWN_MS + PRESS_UP_MS;
-  // Local -Y on the model after the pivot's x=π/2 rotation maps to world -Z,
-  // i.e. INTO the device — exactly the press direction we want.
   function step(now) {
     const t = now - start;
     let offset;
@@ -673,42 +670,158 @@ function pressButton(key) {
   requestAnimationFrame(step);
 }
 
-function setAudio(on) {
-  if (on === audioOn) return;
-  if (on) pad.start();
-  else pad.stop();
-  audioOn = on;
-  audioBtn.setAttribute("aria-pressed", audioOn ? "true" : "false");
+// Knob: rotate ±30° then spring back — tactile sense of a click-detent turn.
+function animateKnob(direction) {
+  const meshes = meshesForGroup("knob");
+  if (!meshes.length) return;
+  meshes.forEach((m) => {
+    if (m.userData.knobBaseZ === undefined) m.userData.knobBaseZ = m.rotation.z;
+  });
+  const PEAK    = (Math.PI / 6) * direction;
+  const HALF_MS = 160;
+  const start   = performance.now();
+  function step(now) {
+    const t     = Math.min(1, (now - start) / (HALF_MS * 2));
+    // Triangle wave with smooth ends: ramp to PEAK at t=0.5, return at t=1
+    const phase = t < 0.5 ? t * 2 : 1 - (t - 0.5) * 2;
+    const ease  = phase * phase * (3 - 2 * phase); // smoothstep
+    meshes.forEach((m) => (m.rotation.z = m.userData.knobBaseZ + PEAK * ease));
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else {
+      meshes.forEach((m) => (m.rotation.z = m.userData.knobBaseZ));
+    }
+  }
+  requestAnimationFrame(step);
 }
 
+function changeVolume(delta) {
+  padGain = Math.max(VOL_MIN, Math.min(VOL_MAX, padGain + delta));
+  if (audioOn) pad.setGain(padGain);
+}
+
+// Full TP-7 state machine:
+//   REC    IDLE→ARMED, ARMED→IDLE (cancel), RECORDING→IDLE (stop rec), PLAYING→ARMED
+//   PLAY   IDLE→PLAYING, ARMED→RECORDING, RECORDING→PLAYING, PLAYING→IDLE
+//   STOP   any→IDLE
+//   +/−    volume up / down
+//   ROCKER turbo-boost reel for REEL_BOOST_MS
+//   KNOB   visual rotate + small volume nudge
 function handleButtonAction(key) {
   const action = BUTTON_GROUPS[key].action;
-  // Audio engine is just on/off — map controls to that vocabulary:
-  //   rec / play / + → start the pad
-  //   stop / -        → stop the pad
-  //   rocker / knob / reel → press feedback only
-  if (action === "rec" || action === "play" || action === "plus") {
-    setAudio(true);
-  } else if (action === "stop" || action === "minus") {
-    setAudio(false);
+  switch (action) {
+    case "rec":
+      switch (deviceState) {
+        case DS.IDLE:      transitionState(DS.ARMED);     break;
+        case DS.ARMED:     transitionState(DS.IDLE);      break; // cancel arm
+        case DS.RECORDING: transitionState(DS.IDLE);      break; // stop recording
+        case DS.PLAYING:   transitionState(DS.ARMED);     break; // cue next take
+      }
+      break;
+
+    case "play":
+      switch (deviceState) {
+        case DS.IDLE:      transitionState(DS.PLAYING);   break;
+        case DS.ARMED:     transitionState(DS.RECORDING); break; // start recording
+        case DS.RECORDING: transitionState(DS.PLAYING);   break; // stop rec, monitor
+        case DS.PLAYING:   transitionState(DS.IDLE);      break; // stop
+      }
+      break;
+
+    case "stop":
+      transitionState(DS.IDLE);
+      break;
+
+    case "plus":
+      changeVolume(+VOL_STEP);
+      break;
+
+    case "minus":
+      changeVolume(-VOL_STEP);
+      break;
+
+    case "rocker":
+      // Boost reel speed (fast-forward / rewind feel) for a short burst
+      reelBoostUntil = performance.now() + REEL_BOOST_MS;
+      break;
+
+    case "knob":
+      animateKnob(+1);
+      changeVolume(+VOL_STEP * 0.5);
+      break;
   }
 }
 
+// ── Raycaster ────────────────────────────────────────────
 const raycaster = new THREE.Raycaster();
-const ndc = new THREE.Vector2();
+const ndc       = new THREE.Vector2();
+
+// ── Unified pointer state ────────────────────────────────
+let dragging      = false;
+let lastPointerX  = 0;
+let lastPointerY  = 0;
 let pointerDownAt = { x: 0, y: 0, t: 0 };
 
 canvas.addEventListener("pointerdown", (e) => {
+  if (!interactiveMode) return;
   pointerDownAt = { x: e.clientX, y: e.clientY, t: performance.now() };
+
+  // Reel hit-test takes priority — hitting the disc starts a manual spin.
+  if (reelGroup && model) {
+    const rect = canvas.getBoundingClientRect();
+    ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(ndc, camera);
+    if (raycaster.intersectObject(reelGroup, true).length > 0) {
+      reelDragging = true;
+      lastPointerX = e.clientX;
+      canvas.setPointerCapture(e.pointerId);
+      canvas.style.cursor = "grabbing";
+      return;
+    }
+  }
+
+  // Standard device-rotation drag
+  dragging     = true;
+  lastPointerX = e.clientX;
+  lastPointerY = e.clientY;
+  canvas.setPointerCapture(e.pointerId);
+  canvas.style.cursor = "grabbing";
 });
 
+canvas.addEventListener("pointermove", (e) => {
+  if (reelDragging) {
+    const dx = e.clientX - lastPointerX;
+    lastPointerX = e.clientX;
+    if (reelGroup) reelGroup.rotation.y += dx * 0.04;
+    return;
+  }
+  if (!dragging) return;
+  const dx = e.clientX - lastPointerX;
+  const dy = e.clientY - lastPointerY;
+  lastPointerX = e.clientX;
+  lastPointerY = e.clientY;
+  exploreYaw  += dx * 0.006;
+  // Clamp pitch so the user can tilt but not flip the model.
+  explorePitch = Math.max(-0.7, Math.min(0.7, explorePitch + dy * 0.005));
+});
+
+function endDrag(e) {
+  reelDragging = false;
+  dragging     = false;
+  try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+  if (interactiveMode) canvas.style.cursor = "grab";
+}
+
 canvas.addEventListener("pointerup", (e) => {
-  if (!interactiveMode || !model) return;
+  const wasReel = reelDragging;
+  endDrag(e);
+
+  // Tap-to-click: only trigger if the pointer barely moved AND was brief.
+  if (!interactiveMode || !model || wasReel) return;
   const dx = e.clientX - pointerDownAt.x;
   const dy = e.clientY - pointerDownAt.y;
   const dt = performance.now() - pointerDownAt.t;
-  // Treat as a click only if the pointer barely moved AND the press was brief
-  // — anything bigger is interpreted as a rotate drag and ignored.
   if (Math.hypot(dx, dy) > 6 || dt > 350) return;
 
   const rect = canvas.getBoundingClientRect();
@@ -716,7 +829,7 @@ canvas.addEventListener("pointerup", (e) => {
   ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(ndc, camera);
   const hits = raycaster.intersectObject(model, true);
-  if (hits.length === 0) return;
+  if (!hits.length) return;
 
   const key = buttonGroupForMesh(hits[0].object.name);
   if (!key) return;
@@ -724,13 +837,54 @@ canvas.addEventListener("pointerup", (e) => {
   handleButtonAction(key);
 });
 
-audioBtn.addEventListener("click", async () => {
-  if (!audioOn) {
-    await pad.start();
-  } else {
-    pad.stop();
+canvas.addEventListener("pointercancel", endDrag);
+
+// ── Hover cursor ─────────────────────────────────────────
+// pointer  → hovering an interactive button
+// grab     → hovering the device body or reel (draggable)
+// grabbing → actively dragging (set on pointerdown, cleared on endDrag)
+canvas.addEventListener("mousemove", (e) => {
+  if (!interactiveMode || !model) return;
+  if (dragging || reelDragging) return; // cursor already "grabbing" during drag
+
+  const rect = canvas.getBoundingClientRect();
+  ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(ndc, camera);
+
+  // Reel check first — it overlaps the device body
+  if (reelGroup) {
+    if (raycaster.intersectObject(reelGroup, true).length > 0) {
+      canvas.style.cursor = "grab";
+      return;
+    }
   }
-  audioOn = !audioOn;
+
+  const hits = raycaster.intersectObject(model, true);
+  canvas.style.cursor =
+    hits.length > 0 && INTERACTIVE_MESH_NAMES.has(hits[0].object.name)
+      ? "pointer"
+      : hits.length > 0
+        ? "grab"
+        : "";
+});
+
+// ── Top-bar audio toggle ─────────────────────────────────
+// Acts as a direct override / kill-switch independent of device state.
+// Turning it OFF also resets the device to IDLE so the LED clears.
+audioBtn.addEventListener("click", async () => {
+  if (audioOn) {
+    pad.stop();
+    audioOn = false;
+    // Collapse device to IDLE so LED / reel also reset
+    stopLedFlash();
+    setLedIntensity(0);
+    deviceState = DS.IDLE;
+  } else {
+    await pad.start();
+    pad.setGain(padGain);
+    audioOn = true;
+  }
   audioBtn.setAttribute("aria-pressed", audioOn ? "true" : "false");
 });
 
