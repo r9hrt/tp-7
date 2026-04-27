@@ -334,6 +334,17 @@ topbarBrand.addEventListener("click", () => {
   window.scrollTo({ top: 0, behavior: "smooth" });
 });
 
+// Scramble on hover for all topbar controls
+function addHoverScramble(el) {
+  const s = new TextScramble(el);
+  const text = el.textContent.trim();
+  el.addEventListener("mouseenter", () => {
+    if (!s.running) s.setText(text);
+  });
+}
+document.querySelectorAll(".mode-switch__option").forEach(addHoverScramble);
+document.querySelectorAll(".topbar__toggle-label").forEach(addHoverScramble);
+
 function finishLoading() {
   loaderBar.style.width = "100%";
   const elapsed = performance.now() - loaderStart;
