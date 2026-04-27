@@ -500,6 +500,10 @@ body.is-interactive .explore-hint {
   opacity: 1;
 }
 
+.scramble-glyph {
+  opacity: 0.35;
+}
+
 .loader__bar {
   width: 240px;
   height: 1px;

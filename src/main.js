@@ -7,6 +7,62 @@ import { createAmbientPad } from "./audio.js";
 history.scrollRestoration = "manual";
 window.scrollTo(0, 0);
 
+// ── Text scramble ────────────────────────────────────────
+// Cycles random chars on each character position before resolving to the
+// final glyph — gives the loader brand a "decoding" feel.
+class TextScramble {
+  constructor(el) {
+    this.el = el;
+    this.chars = "abcdefghijklmnopqrstuvwxyz!.-_/=+*#0123456789";
+    this.frame = 0;
+    this.queue = [];
+    this.raf = null;
+    this.update = this.update.bind(this);
+  }
+
+  setText(newText) {
+    const len = newText.length;
+    this.queue = Array.from({ length: len }, (_, i) => ({
+      to: newText[i],
+      start: Math.floor(Math.random() * 12),
+      end: Math.floor(Math.random() * 12) + 14 + i * 1.2 | 0,
+      char: "",
+    }));
+    this.frame = 0;
+    cancelAnimationFrame(this.raf);
+    return new Promise((resolve) => {
+      this.resolve = resolve;
+      this.update();
+    });
+  }
+
+  update() {
+    let out = "";
+    let done = 0;
+    for (const q of this.queue) {
+      if (this.frame >= q.end) {
+        done++;
+        out += q.to === " " ? " " : q.to;
+      } else if (this.frame >= q.start) {
+        if (!q.char || Math.random() < 0.3) {
+          q.char = this.chars[Math.floor(Math.random() * this.chars.length)];
+        }
+        out += `<span class="scramble-glyph">${q.char}</span>`;
+      } else {
+        out += q.to === " " ? " " : "·";
+      }
+    }
+    this.el.innerHTML = out;
+    if (done === this.queue.length) {
+      this.el.textContent = this.queue.map((q) => q.to).join("");
+      this.resolve();
+    } else {
+      this.frame++;
+      this.raf = requestAnimationFrame(this.update);
+    }
+  }
+}
+
 const canvas = document.getElementById("scene");
 const loaderEl = document.getElementById("loader");
 const loaderBar = loaderEl.querySelector(".loader__bar span");
@@ -260,6 +316,9 @@ const LOADER_MIN_BAR_MS = 1700;
 const BRAND_HOLD_MS = 3100;
 const loaderStart = performance.now();
 
+const loaderBrand = loaderEl.querySelector(".loader__brand");
+const scrambler = new TextScramble(loaderBrand);
+
 function finishLoading() {
   loaderBar.style.width = "100%";
   const elapsed = performance.now() - loaderStart;
@@ -268,6 +327,8 @@ function finishLoading() {
   const barWait = Math.max(1150, LOADER_MIN_BAR_MS - elapsed);
   setTimeout(() => {
     loaderEl.classList.add("is-revealed");
+    // Scramble runs as the brand fades in — decodes "teenage engineering"
+    scrambler.setText("teenage engineering");
     setTimeout(() => {
       loaderEl.classList.add("is-hidden");
       sections[0].classList.add("is-active");
