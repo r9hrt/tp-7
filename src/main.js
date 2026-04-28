@@ -906,4 +906,14 @@ audioBtn.addEventListener("click", async () => {
   audioBtn.setAttribute("aria-pressed", audioOn ? "true" : "false");
 });
 
+// ── Lock toggle button widths ────────────────────────────
+// Measure each pill at its initial (widest) state once fonts are loaded,
+// then set min-width so the button never shrinks when the label changes
+// (e.g. "light" → "dark" on the theme toggle).
+document.fonts.ready.then(() => {
+  document.querySelectorAll(".topbar__toggle").forEach((btn) => {
+    btn.style.minWidth = btn.getBoundingClientRect().width + "px";
+  });
+});
+
 readScroll();
