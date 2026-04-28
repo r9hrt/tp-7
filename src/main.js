@@ -416,11 +416,46 @@ const currentRot     = new THREE.Euler().copy(keyframes[0].rot);
 const LERP = 0.07;
 
 // ── Text contrast via raycasting clip-path (light mode) ──────────────────────
-// Cast rays from the camera through N horizontal sample columns across each
-// [data-text] element to find the true left / right device boundary on screen.
-// Accurate for any device orientation — no AABB projection drift.
+// Coarse scan locates the bracket containing the device edge; binary refinement
+// then narrows it to sub-pixel precision. Results are lerped frame-to-frame so
+// the inversion trails the device smoothly without visible stepping.
 const _ndcRay    = new THREE.Vector2();
-const CLIP_SAMPLES = 16; // horizontal probes per scan direction
+const _prevClips = new WeakMap(); // el → { l, r }
+const COARSE     = 16;   // initial horizontal probes per direction
+const REFINE     = 5;    // binary-search steps after bracket found
+const CLIP_LERP  = 0.12; // convergence speed — matches camera lerp feel
+
+function _rayHit(xViewport, ndcY) {
+  _ndcRay.set((xViewport / window.innerWidth) * 2 - 1, ndcY);
+  raycaster.setFromCamera(_ndcRay, camera);
+  return raycaster.intersectObject(model, true).length > 0;
+}
+
+function _findEdge(rect, ndcY, fromLeft) {
+  const step = 1 / COARSE;
+  let edgeFrac = fromLeft ? 1 : 0; // sentinel: device not found in range
+  for (let i = 0; i < COARSE; i++) {
+    const frac = fromLeft ? (i + 0.5) * step : 1 - (i + 0.5) * step;
+    if (_rayHit(rect.left + rect.width * frac, ndcY)) {
+      edgeFrac = frac;
+      break;
+    }
+  }
+  if (edgeFrac === (fromLeft ? 1 : 0)) return edgeFrac; // not found
+
+  // Binary refinement between the last miss and the first hit
+  let lo = fromLeft ? Math.max(0, edgeFrac - step) : edgeFrac;
+  let hi = fromLeft ? edgeFrac : Math.min(1, edgeFrac + step);
+  for (let j = 0; j < REFINE; j++) {
+    const mid = (lo + hi) * 0.5;
+    if (_rayHit(rect.left + rect.width * mid, ndcY)) {
+      if (fromLeft) hi = mid; else lo = mid;
+    } else {
+      if (fromLeft) lo = mid; else hi = mid;
+    }
+  }
+  return fromLeft ? hi : lo;
+}
 
 function updateDeviceClip() {
   if (currentTheme !== "light" || !model) return;
@@ -432,39 +467,18 @@ function updateDeviceClip() {
 
       const ndcY = -((rect.top + rect.height * 0.5) / window.innerHeight) * 2 + 1;
 
-      // Scan left → right: first hit = device left edge
-      let clipL = rect.width; // default: clip all (device not found)
-      for (let i = 0; i < CLIP_SAMPLES; i++) {
-        const xFrac = (i + 0.5) / CLIP_SAMPLES;
-        _ndcRay.set(
-          ((rect.left + rect.width * xFrac) / window.innerWidth) * 2 - 1,
-          ndcY,
-        );
-        raycaster.setFromCamera(_ndcRay, camera);
-        if (raycaster.intersectObject(model, true).length > 0) {
-          clipL = rect.width * xFrac;
-          break;
-        }
-      }
+      const rawL = rect.width * _findEdge(rect, ndcY, true);
+      const rawR = rect.width * (1 - _findEdge(rect, ndcY, false));
 
-      // Scan right → left: first hit = device right edge
-      let clipR = rect.width;
-      for (let i = CLIP_SAMPLES - 1; i >= 0; i--) {
-        const xFrac = (i + 0.5) / CLIP_SAMPLES;
-        _ndcRay.set(
-          ((rect.left + rect.width * xFrac) / window.innerWidth) * 2 - 1,
-          ndcY,
-        );
-        raycaster.setFromCamera(_ndcRay, camera);
-        if (raycaster.intersectObject(model, true).length > 0) {
-          clipR = rect.width * (1 - xFrac);
-          break;
-        }
-      }
+      // Lerp toward target — smooths discrete steps and camera motion
+      const prev = _prevClips.get(el) ?? { l: rawL, r: rawR };
+      const l = prev.l + (rawL - prev.l) * CLIP_LERP;
+      const r = prev.r + (rawR - prev.r) * CLIP_LERP;
+      _prevClips.set(el, { l, r });
 
       el.style.setProperty(
         "--device-clip",
-        `inset(0px ${clipR.toFixed(1)}px 0px ${clipL.toFixed(1)}px)`,
+        `inset(0px ${r.toFixed(2)}px 0px ${l.toFixed(2)}px)`,
       );
     });
   });
