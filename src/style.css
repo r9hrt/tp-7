@@ -488,6 +488,9 @@ body.is-interactive .explore-hint {
   opacity: 1;
   visibility: visible;
   transition: opacity 0.5s ease, visibility 0.5s ease;
+  /* Nothing on the loader is interactive — let clicks pass through to the
+     topbar controls so they work even during the loading animation. */
+  pointer-events: none;
 }
 
 #loader.is-hidden {
