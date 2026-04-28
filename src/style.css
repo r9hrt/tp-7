@@ -87,6 +87,13 @@ body {
   cursor: pointer;
   user-select: none;
   text-transform: none;
+  transition: color 0.2s ease;
+}
+
+.topbar__brand:hover {
+  /* Full opacity so the difference blend resolves to near-white on dark
+     backgrounds — gives the classic "lights up on hover" feel. */
+  color: var(--fg);
 }
 
 .topbar__controls {

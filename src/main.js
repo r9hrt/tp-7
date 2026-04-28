@@ -321,7 +321,20 @@ function addHoverScramble(el) {
   });
 }
 document.querySelectorAll(".mode-switch__option").forEach(addHoverScramble);
-document.querySelectorAll(".topbar__toggle-label").forEach(addHoverScramble);
+
+// Toggle pills: listen on the outer button so the scramble fires as soon as
+// the pointer enters the pill border — not only when it reaches the label text.
+document.querySelectorAll(".topbar__toggle").forEach((btn) => {
+  const label = btn.querySelector(".topbar__toggle-label");
+  if (!label) return;
+  const s    = new TextScramble(label);
+  const text = label.textContent.trim();
+  btn.addEventListener("mouseenter", () => {
+    if (s.running) return;
+    label.style.minWidth = label.offsetWidth + "px";
+    s.setText(text).then(() => { label.style.minWidth = ""; });
+  });
+});
 
 function finishLoading() {
   loaderBar.style.width = "100%";
