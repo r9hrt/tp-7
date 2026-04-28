@@ -283,29 +283,8 @@ gltfLoader.load(
 
     modelGroup.add(pivot);
 
-    // ── Bounding-box corners for clip-path projection ─────────────
-    // Scroll is locked to 0 during the loading screen, so modelGroup.rotation
-    // is still (0,0,0) here and matrixWorld ≈ identity. The bbox from
-    // setFromObject is therefore in modelGroup-local space. Each frame,
-    // applyMatrix4(modelGroup.matrixWorld) rotates the corners to world space,
-    // then project(camera) gives NDC — no per-frame vertex traversal needed.
-    modelGroup.updateMatrixWorld(true);
-    const _loadBBox = new THREE.Box3().setFromObject(modelGroup);
-    const _lmin = _loadBBox.min, _lmax = _loadBBox.max;
-    deviceBBoxCorners = [
-      new THREE.Vector3(_lmin.x, _lmin.y, _lmin.z),
-      new THREE.Vector3(_lmax.x, _lmin.y, _lmin.z),
-      new THREE.Vector3(_lmin.x, _lmax.y, _lmin.z),
-      new THREE.Vector3(_lmax.x, _lmax.y, _lmin.z),
-      new THREE.Vector3(_lmin.x, _lmin.y, _lmax.z),
-      new THREE.Vector3(_lmax.x, _lmin.y, _lmax.z),
-      new THREE.Vector3(_lmin.x, _lmax.y, _lmax.z),
-      new THREE.Vector3(_lmax.x, _lmax.y, _lmax.z),
-    ];
-
     // Stamp data-text on all narrative text nodes — the ::after pseudo-element
-    // reads this via content: attr(data-text) to render an identical white
-    // overlay, clipped to the device footprint above.
+    // reads this via content: attr(data-text) to render an identical white overlay.
     sections.forEach((s) => {
       s.querySelectorAll(".title, .tagline, .body").forEach((el) => {
         el.dataset.text = el.textContent.trim();
@@ -436,39 +415,56 @@ const currentCamLook = new THREE.Vector3().copy(keyframes[0].camLook);
 const currentRot     = new THREE.Euler().copy(keyframes[0].rot);
 const LERP = 0.07;
 
-// ── Text contrast via 3D bounding-box clip-path (light mode) ────
-// Each frame, project the device's AABB corners (stored in modelGroup-local
-// space at load time, when matrixWorld ≈ identity) through the current camera
-// to get a 2D screen footprint. A CSS clip-path on each [data-text]::after
-// shows white text ONLY over the dark device — no GPU→CPU readback needed.
-let deviceBBoxCorners = null; // [Vector3 × 8] in modelGroup-local space
-const _projV = new THREE.Vector3(); // scratch, reused each frame
+// ── Text contrast via raycasting clip-path (light mode) ──────────────────────
+// Cast rays from the camera through N horizontal sample columns across each
+// [data-text] element to find the true left / right device boundary on screen.
+// Accurate for any device orientation — no AABB projection drift.
+const _ndcRay    = new THREE.Vector2();
+const CLIP_SAMPLES = 16; // horizontal probes per scan direction
 
 function updateDeviceClip() {
-  if (currentTheme !== "light" || !deviceBBoxCorners) return;
-  const hw = window.innerWidth  * 0.5;
-  const hh = window.innerHeight * 0.5;
-  let minX =  Infinity, maxX = -Infinity;
-  let minY =  Infinity, maxY = -Infinity;
-  for (const corner of deviceBBoxCorners) {
-    _projV.copy(corner).applyMatrix4(modelGroup.matrixWorld).project(camera);
-    const sx =  _projV.x * hw + hw;
-    const sy = -_projV.y * hh + hh;
-    minX = Math.min(minX, sx); maxX = Math.max(maxX, sx);
-    minY = Math.min(minY, sy); maxY = Math.max(maxY, sy);
-  }
+  if (currentTheme !== "light" || !model) return;
   sections.forEach((section) => {
     if (!section.classList.contains("is-active")) return;
     section.querySelectorAll("[data-text]").forEach((el) => {
       const rect = el.getBoundingClientRect();
-      // inset(top right bottom left): positive = clip that many px from that edge
-      const clipL = Math.max(0, minX - rect.left).toFixed(1);
-      const clipR = Math.max(0, rect.right  - maxX).toFixed(1);
-      const clipT = Math.max(0, minY - rect.top).toFixed(1);
-      const clipB = Math.max(0, rect.bottom - maxY).toFixed(1);
+      if (rect.width < 1 || rect.height < 1) return;
+
+      const ndcY = -((rect.top + rect.height * 0.5) / window.innerHeight) * 2 + 1;
+
+      // Scan left → right: first hit = device left edge
+      let clipL = rect.width; // default: clip all (device not found)
+      for (let i = 0; i < CLIP_SAMPLES; i++) {
+        const xFrac = (i + 0.5) / CLIP_SAMPLES;
+        _ndcRay.set(
+          ((rect.left + rect.width * xFrac) / window.innerWidth) * 2 - 1,
+          ndcY,
+        );
+        raycaster.setFromCamera(_ndcRay, camera);
+        if (raycaster.intersectObject(model, true).length > 0) {
+          clipL = rect.width * xFrac;
+          break;
+        }
+      }
+
+      // Scan right → left: first hit = device right edge
+      let clipR = rect.width;
+      for (let i = CLIP_SAMPLES - 1; i >= 0; i--) {
+        const xFrac = (i + 0.5) / CLIP_SAMPLES;
+        _ndcRay.set(
+          ((rect.left + rect.width * xFrac) / window.innerWidth) * 2 - 1,
+          ndcY,
+        );
+        raycaster.setFromCamera(_ndcRay, camera);
+        if (raycaster.intersectObject(model, true).length > 0) {
+          clipR = rect.width * (1 - xFrac);
+          break;
+        }
+      }
+
       el.style.setProperty(
         "--device-clip",
-        `inset(${clipT}px ${clipR}px ${clipB}px ${clipL}px)`,
+        `inset(0px ${clipR.toFixed(1)}px 0px ${clipL.toFixed(1)}px)`,
       );
     });
   });
