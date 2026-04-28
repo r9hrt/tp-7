@@ -419,11 +419,13 @@ const LERP = 0.07;
 // Coarse scan locates the bracket containing the device edge; binary refinement
 // then narrows it to sub-pixel precision. Results are lerped frame-to-frame so
 // the inversion trails the device smoothly without visible stepping.
-const _ndcRay    = new THREE.Vector2();
-const _prevClips = new WeakMap(); // el → { l, r }
-const COARSE     = 16;   // initial horizontal probes per direction
-const REFINE     = 5;    // binary-search steps after bracket found
-const CLIP_LERP  = 0.12; // convergence speed — matches camera lerp feel
+const _ndcRay        = new THREE.Vector2();
+const _prevClips     = new WeakMap(); // el      → { l, r }
+const _sectionSeenAt = new WeakMap(); // section → timestamp of last is-active frame
+const COARSE         = 16;    // initial horizontal probes per direction
+const REFINE         = 5;     // binary-search steps after bracket found
+const CLIP_LERP      = 0.12;  // convergence speed — matches camera lerp feel
+const FADE_MS        = 650;   // slightly longer than the CSS 0.6s opacity transition
 
 function _rayHit(xViewport, ndcY) {
   _ndcRay.set((xViewport / window.innerWidth) * 2 - 1, ndcY);
@@ -459,8 +461,14 @@ function _findEdge(rect, ndcY, fromLeft) {
 
 function updateDeviceClip() {
   if (currentTheme !== "light" || !model) return;
+  const now = performance.now();
   sections.forEach((section) => {
-    if (!section.classList.contains("is-active")) return;
+    const active = section.classList.contains("is-active");
+    if (active) _sectionSeenAt.set(section, now);
+    // Keep processing for FADE_MS after is-active is removed so the clip
+    // continues to update through the full CSS opacity fade-out.
+    const last = _sectionSeenAt.get(section) ?? -Infinity;
+    if (!active && now - last > FADE_MS) return;
     section.querySelectorAll("[data-text]").forEach((el) => {
       const rect = el.getBoundingClientRect();
       if (rect.width < 1 || rect.height < 1) return;
