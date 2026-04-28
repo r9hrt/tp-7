@@ -224,6 +224,9 @@ function applyTheme(theme) {
   }
 
   themeBtn.setAttribute("aria-pressed", theme === "light" ? "true" : "false");
+  // Label shows the action (where you'll go), not the current state.
+  const themeLabel = themeBtn.querySelector(".topbar__toggle-label");
+  if (themeLabel) themeLabel.textContent = theme === "light" ? "dark" : "light";
 }
 
 const gltfLoader = new GLTFLoader();
@@ -327,12 +330,14 @@ document.querySelectorAll(".mode-switch__option").forEach(addHoverScramble);
 document.querySelectorAll(".topbar__toggle").forEach((btn) => {
   const label = btn.querySelector(".topbar__toggle-label");
   if (!label) return;
-  const s    = new TextScramble(label);
-  const text = label.textContent.trim();
+  const s = new TextScramble(label);
   btn.addEventListener("mouseenter", () => {
     if (s.running) return;
+    // Read label text at hover time so the scramble reflects the current
+    // label value (e.g. "dark" after switching to light mode).
+    const current = label.textContent.trim();
     label.style.minWidth = label.offsetWidth + "px";
-    s.setText(text).then(() => { label.style.minWidth = ""; });
+    s.setText(current).then(() => { label.style.minWidth = ""; });
   });
 });
 
