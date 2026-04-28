@@ -539,19 +539,6 @@ body.is-interactive .explore-hint {
   transition: width 1.1s ease;
 }
 
-/* ── Section glass card (light mode only) ──────────────── */
-/* A frosted cream panel sits behind each text block. The device is fully
-   visible around and through the card — the blur just gives dark text a
-   clean, high-contrast surface without touching the global colours.
-   In dark mode the wrapper is a no-op (no styles applied). */
-[data-theme="light"] .section__glass {
-  width: max-content;
-  max-width: min(88vw, 54ch);
-  background: rgba(241, 237, 230, 0.72);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  padding: 2.5rem 3rem;
-}
 
 /* ── Reduced motion ───────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
