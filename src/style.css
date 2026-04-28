@@ -18,8 +18,8 @@
   --dim: rgba(10, 10, 10, 0.38);
   --accent: #d94814;
   --line: rgba(10, 10, 10, 0.14);
-  --shadow: rgba(241, 237, 230, 0.95);
-  --shadow-soft: rgba(241, 237, 230, 0.88);
+  --shadow: rgba(0, 0, 0, 0);
+  --shadow-soft: rgba(0, 0, 0, 0);
   color-scheme: light;
 }
 
@@ -549,21 +549,33 @@ body.is-interactive .explore-hint {
 }
 
 
-/* ── Light-mode text contrast — JS-driven via gl.readPixels ─────── */
-/* main.js samples WebGL pixels at the title position after each section
-   transition. If ≥3/7 samples hit a dark device surface, data-text-contrast
-   is set to "light" and these rules switch text to white.                    */
-[data-theme="light"] .section .title,
-[data-theme="light"] .section .tagline,
-[data-theme="light"] .section .body {
-  transition: color 0.4s ease;
+/* ── Light-mode per-glyph contrast via 3D bounding-box clip-path ── */
+/* main.js projects the device's 3D bbox to screen coords each frame and
+   sets --device-clip on each [data-text] element. A ::after pseudo renders
+   white text clipped to exactly the device footprint — the original dark
+   text shows on the cream side, white on the dark device, no seam.          */
+[data-theme="light"] .section [data-text] {
+  position: relative;
 }
 
-[data-theme="light"] .section[data-text-contrast="light"] .title,
-[data-theme="light"] .section[data-text-contrast="light"] .tagline,
-[data-theme="light"] .section[data-text-contrast="light"] .body {
+[data-theme="light"] .section [data-text]::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  /* Extend slightly above/below so descenders and ascenders aren't cut */
+  padding-bottom: inherit;
   color: white;
-  text-shadow: none;
+  /* Default: fully hidden until JS sets the clip */
+  clip-path: var(--device-clip, inset(0 100% 0 0));
+  pointer-events: none;
+  /* Inherit every typographic property so the overlay renders identically */
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: inherit;
+  white-space: inherit;
 }
 
 /* ── Reduced motion ───────────────────────────────────── */
