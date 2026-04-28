@@ -187,7 +187,8 @@ body {
 /* ── Sections (overlaid text) ──────────────────────────── */
 #sections {
   position: relative;
-  z-index: 10;
+  /* No z-index here — keeping sections out of an isolated stacking context
+     so their mix-blend-mode can composite against the canvas below. */
   pointer-events: none;
 }
 
@@ -201,7 +202,12 @@ body {
   opacity: 0;
   transform: translateY(12px);
   transition: opacity 0.6s ease, transform 0.6s ease;
-  will-change: opacity, transform;
+  /* z-index lives here (not on #sections) so each section participates in the
+     root stacking context — required for mix-blend-mode to see the canvas.
+     No will-change here: promoting sections to GPU compositing layers breaks
+     mix-blend-mode against the WebGL canvas (two separate GPU layers can't
+     read each other's pixels for blend operations in Chrome's compositor). */
+  z-index: 10;
   pointer-events: none;
 }
 
@@ -393,9 +399,12 @@ body.is-interactive #scene:active {
 }
 
 body.is-interactive #sections,
+body.is-interactive .section,
 body.is-interactive .progress,
 body.is-interactive .hint {
-  /* Hide narrative overlays while the user is exploring the device. */
+  /* Hide narrative overlays while the user is exploring the device.
+     Both #sections and .section are targeted because fixed children are
+     no longer inside #sections' stacking context after the z-index move. */
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.3s ease, visibility 0.3s ease;
@@ -539,6 +548,23 @@ body.is-interactive .explore-hint {
   transition: width 1.1s ease;
 }
 
+
+/* ── Light-mode text contrast — JS-driven via gl.readPixels ─────── */
+/* main.js samples WebGL pixels at the title position after each section
+   transition. If ≥3/7 samples hit a dark device surface, data-text-contrast
+   is set to "light" and these rules switch text to white.                    */
+[data-theme="light"] .section .title,
+[data-theme="light"] .section .tagline,
+[data-theme="light"] .section .body {
+  transition: color 0.4s ease;
+}
+
+[data-theme="light"] .section[data-text-contrast="light"] .title,
+[data-theme="light"] .section[data-text-contrast="light"] .tagline,
+[data-theme="light"] .section[data-text-contrast="light"] .body {
+  color: white;
+  text-shadow: none;
+}
 
 /* ── Reduced motion ───────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {

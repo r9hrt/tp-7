@@ -83,6 +83,10 @@ const renderer = new THREE.WebGLRenderer({
   antialias: true,
   alpha: true,
   powerPreference: "high-performance",
+  // Required for gl.readPixels() to work outside the exact RAF frame that
+  // rendered the scene. Prevents Chrome from discarding the framebuffer
+  // after frame presentation. Negligible perf cost on modern GPUs.
+  preserveDrawingBuffer: true,
 });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -227,6 +231,11 @@ function applyTheme(theme) {
   // Label shows the action (where you'll go), not the current state.
   const themeLabel = themeBtn.querySelector(".topbar__toggle-label");
   if (themeLabel) themeLabel.textContent = theme === "light" ? "dark" : "light";
+
+  // Reset contrast sampling so the new theme gets a fresh read
+  sections.forEach((s) => { delete s.dataset.textContrast; });
+  contrastTargetSection  = null;
+  contrastPendingFrames = -1;
 }
 
 const gltfLoader = new GLTFLoader();
@@ -405,6 +414,47 @@ const currentCamLook = new THREE.Vector3().copy(keyframes[0].camLook);
 const currentRot     = new THREE.Euler().copy(keyframes[0].rot);
 const LERP = 0.07;
 
+// ── Text contrast sampling (light mode) ─────────────────
+// mix-blend-mode: difference can't read WebGL canvas pixels in Chrome's GPU
+// compositor. Instead, we read pixels directly from the WebGL framebuffer
+// right after renderer.render() (buffer is valid in the same RAF).
+// One GPU→CPU sync per section change (not per frame) — negligible cost.
+let contrastPendingFrames = -1; // ≥1 → counting down; 0 → fire read
+let contrastTargetSection  = null;
+
+function sampleTextContrast(section) {
+  if (!section || currentTheme !== "light") return;
+  const title = section.querySelector(".title");
+  if (!title) return;
+
+  const rect = title.getBoundingClientRect();
+  const gl   = renderer.getContext();
+  const dpr  = renderer.getPixelRatio();
+  const buf  = new Uint8Array(4);
+  let dark   = 0;
+
+  // 7 evenly-spaced samples across the full title width
+  for (let i = 0; i < 7; i++) {
+    const xCss = rect.left + rect.width * ((i + 0.5) / 7);
+    const yCss = rect.top  + rect.height * 0.5;
+    if (xCss < 0 || xCss > window.innerWidth) continue;
+
+    const px = Math.round(xCss * dpr);
+    const py = Math.round((window.innerHeight - yCss) * dpr); // WebGL Y is flipped
+
+    gl.readPixels(px, py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+
+    // buf[3] > 10 → device pixel present (not transparent CSS background)
+    if (buf[3] > 10) {
+      const lum = 0.2126 * buf[0] / 255 + 0.7152 * buf[1] / 255 + 0.0722 * buf[2] / 255;
+      if (lum < 0.35) dark++;
+    }
+  }
+
+  // ≥3 of 7 samples over dark device → white text
+  section.dataset.textContrast = dark >= 3 ? "light" : "dark";
+}
+
 // ── Interactive (explore) mode ──────────────────────────
 let interactiveMode = false;
 const explorePose = {
@@ -576,7 +626,26 @@ function tick() {
 
   updateSections(scrollProgress);
   updateProgressBar(scrollProgress);
+
+  // Schedule contrast read when the active section changes (light mode only)
+  if (currentTheme === "light") {
+    const active = sections.find((s) => s.classList.contains("is-active")) ?? null;
+    if (active !== contrastTargetSection) {
+      contrastTargetSection  = active;
+      contrastPendingFrames = 20; // ~0.33 s — enough for camera to settle
+    }
+    if (contrastPendingFrames > 0) contrastPendingFrames--;
+  }
+
   renderer.render(scene, camera);
+
+  // Fire the deferred pixel read in the same RAF so the framebuffer is valid
+  // (preserveDrawingBuffer is false — buffer is undefined after this RAF ends)
+  if (contrastPendingFrames === 0) {
+    contrastPendingFrames = -1;
+    sampleTextContrast(contrastTargetSection);
+  }
+
   requestAnimationFrame(tick);
 }
 tick();
