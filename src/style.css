@@ -124,12 +124,25 @@ body {
   border: 0;
   color: var(--muted);
   cursor: pointer;
-  padding: 0.45rem 0.95rem;
+  /* Larger padding + equal min-width make both options the same hit area
+     regardless of which is active — the inactive one never feels smaller. */
+  padding: 0.55rem 1.1rem;
+  min-width: 5.5rem;
+  text-align: center;
   border-radius: 999px;
   font: inherit;
   letter-spacing: inherit;
   text-transform: inherit;
-  transition: color 0.25s ease, background-color 0.25s ease;
+  /* No transition — the toggle should feel instant, like a hardware switch.
+     A slow animation creates a "locked" perception that blocks rapid clicking. */
+  transition: none;
+  /* Eliminate the 300ms touch-tap delay on mobile/trackpad browsers. */
+  touch-action: manipulation;
+  user-select: none;
+  /* Explicitly override the inherited pointer-events:none from parent .section.
+     This makes both options always interactive regardless of which section is
+     currently active — critical for the mode-switch duplicated in section #5. */
+  pointer-events: auto;
 }
 
 .mode-switch__option.is-active {
@@ -140,6 +153,7 @@ body {
 .mode-switch__option:not(.is-active):hover {
   color: var(--fg);
 }
+
 
 /* ── Topbar pill toggles (theme, sound) ────────────────── */
 .topbar__toggle {

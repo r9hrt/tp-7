@@ -40,6 +40,17 @@ class TextScramble {
     return this.raf !== null;
   }
 
+  // Snap to the final text immediately — used on pointerdown so a click during
+  // a scramble doesn't lose its target when innerHTML mutates between mousedown
+  // and mouseup (the spans the click landed on get replaced mid-gesture).
+  finish() {
+    if (this.raf === null) return;
+    cancelAnimationFrame(this.raf);
+    this.raf = null;
+    this.el.textContent = this.queue.map((q) => q.to).join("");
+    if (this.resolve) this.resolve();
+  }
+
   update() {
     let out = "";
     let done = 0;
@@ -76,6 +87,7 @@ const sections = Array.from(document.querySelectorAll(".section"));
 const audioBtn = document.getElementById("audio-toggle");
 const themeBtn = document.getElementById("theme-toggle");
 const modeOptions = Array.from(document.querySelectorAll(".mode-switch__option"));
+const topbarEl   = document.querySelector(".topbar");
 
 // ── Renderer ────────────────────────────────────────────
 const renderer = new THREE.WebGLRenderer({
@@ -322,8 +334,11 @@ topbarBrand.addEventListener("click", () => {
   window.scrollTo({ top: 0, behavior: "smooth" });
 });
 
-// Scramble on hover for all topbar controls.
+// Scramble on hover for topbar controls.
 // Width is locked before the animation so the button doesn't resize.
+// pointerdown calls finish() so a click during the scramble doesn't lose its
+// target — innerHTML mutations between mousedown and mouseup would otherwise
+// leave the click event with mismatched targets and the browser drops the click.
 function addHoverScramble(el) {
   const s    = new TextScramble(el);
   const text = el.textContent.trim();
@@ -331,6 +346,12 @@ function addHoverScramble(el) {
     if (s.running) return;
     el.style.minWidth = el.offsetWidth + "px";
     s.setText(text).then(() => { el.style.minWidth = ""; });
+  });
+  el.addEventListener("pointerdown", () => {
+    if (s.running) {
+      s.finish();
+      el.style.minWidth = "";
+    }
   });
 }
 document.querySelectorAll(".mode-switch__option").forEach(addHoverScramble);
@@ -348,6 +369,14 @@ document.querySelectorAll(".topbar__toggle").forEach((btn) => {
     const current = label.textContent.trim();
     label.style.minWidth = label.offsetWidth + "px";
     s.setText(current).then(() => { label.style.minWidth = ""; });
+  });
+  // Same target-stability fix as addHoverScramble: snap to final text on
+  // pointerdown so the click event isn't dropped due to span churn.
+  btn.addEventListener("pointerdown", () => {
+    if (s.running) {
+      s.finish();
+      label.style.minWidth = "";
+    }
   });
 });
 
@@ -667,6 +696,28 @@ function tick() {
   renderer.render(scene, camera);
   updateDeviceClip();
 
+  // Cursor update — RAF-throttled so raycasts don't back up the event queue
+  if (interactiveMode && model && !dragging && !reelDragging) {
+    const rect = canvas.getBoundingClientRect();
+    ndc.x = ((_mouseX - rect.left) / rect.width) * 2 - 1;
+    ndc.y = -((_mouseY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(ndc, camera);
+    // Merge reel + model hits into one sorted list so an interactive mesh
+    // anywhere in the stack wins, even if the body shell is in front of it.
+    const allHits = [
+      ...(reelGroup ? raycaster.intersectObject(reelGroup, true) : []),
+      ...raycaster.intersectObject(model, true),
+    ].sort((a, b) => a.distance - b.distance);
+
+    if (allHits.length === 0) {
+      canvas.style.cursor = "";
+    } else if (allHits.some((h) => INTERACTIVE_MESH_NAMES.has(h.object.name))) {
+      canvas.style.cursor = "pointer";
+    } else {
+      canvas.style.cursor = "grab";
+    }
+  }
+
   requestAnimationFrame(tick);
 }
 tick();
@@ -694,6 +745,12 @@ function setMode(mode) {
   if (next === interactiveMode) return;
   interactiveMode = next;
 
+  // ── Visual state first — button responds at the same frame as the click,
+  //    before any layout-triggering DOM work (overflow, scrollTo, classList).
+  modeOptions.forEach((opt) =>
+    opt.classList.toggle("is-active", opt.dataset.mode === mode),
+  );
+
   if (interactiveMode) {
     // ── Entering explore ────────────────────────────────────
     // Freeze the viewport before toggling the class so scrollY is still valid.
@@ -716,14 +773,14 @@ function setMode(mode) {
     canvas.style.cursor = "";
     transitionState(DS.IDLE);
   }
-
-  modeOptions.forEach((opt) =>
-    opt.classList.toggle("is-active", opt.dataset.mode === mode),
-  );
 }
 
+// pointerdown fires on initial press (not on release like click) — makes the
+// switch feel instant, like a hardware toggle. The canvas pointerdown handler
+// never fires here: the canvas is not an ancestor of these buttons, so events
+// don't bubble to it regardless.
 modeOptions.forEach((opt) =>
-  opt.addEventListener("click", () => setMode(opt.dataset.mode)),
+  opt.addEventListener("pointerdown", () => setMode(opt.dataset.mode)),
 );
 
 // ── Device interaction mesh map ─────────────────────────
@@ -886,6 +943,11 @@ let pointerDownAt = { x: 0, y: 0, t: 0 };
 
 canvas.addEventListener("pointerdown", (e) => {
   if (!interactiveMode) return;
+  // Never absorb clicks that land inside the topbar — those belong to the
+  // UI controls (mode-switch, theme, audio). Without this guard, a miss by
+  // a few pixels below the pill would setPointerCapture on the canvas and
+  // silently swallow the subsequent pointerup, making the button feel broken.
+  if (topbarEl && e.clientY <= topbarEl.getBoundingClientRect().bottom) return;
   pointerDownAt = { x: e.clientX, y: e.clientY, t: performance.now() };
 
   // Reel hit-test takes priority — hitting the disc starts a manual spin.
@@ -950,11 +1012,13 @@ canvas.addEventListener("pointerup", (e) => {
   ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
   ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(ndc, camera);
+  // Check all hits (not just hits[0]) so body-shell geometry doesn't block
+  // clicks on the button meshes underneath it.
   const hits = raycaster.intersectObject(model, true);
-  if (!hits.length) return;
+  const hit = hits.find((h) => buttonGroupForMesh(h.object.name));
+  if (!hit) return;
 
-  const key = buttonGroupForMesh(hits[0].object.name);
-  if (!key) return;
+  const key = buttonGroupForMesh(hit.object.name);
   pressButton(key);
   handleButtonAction(key);
 });
@@ -965,30 +1029,15 @@ canvas.addEventListener("pointercancel", endDrag);
 // pointer  → hovering an interactive button
 // grab     → hovering the device body or reel (draggable)
 // grabbing → actively dragging (set on pointerdown, cleared on endDrag)
+//
+// Raycasting is throttled to one per RAF tick (in tick()) rather than running
+// on every mousemove event (100+ /sec). This keeps the event queue clear so
+// click events on the mode-switch buttons fire immediately.
+let _mouseX = 0;
+let _mouseY = 0;
 canvas.addEventListener("mousemove", (e) => {
-  if (!interactiveMode || !model) return;
-  if (dragging || reelDragging) return; // cursor already "grabbing" during drag
-
-  const rect = canvas.getBoundingClientRect();
-  ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-  ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-  raycaster.setFromCamera(ndc, camera);
-
-  // Reel check first — it overlaps the device body
-  if (reelGroup) {
-    if (raycaster.intersectObject(reelGroup, true).length > 0) {
-      canvas.style.cursor = "grab";
-      return;
-    }
-  }
-
-  const hits = raycaster.intersectObject(model, true);
-  canvas.style.cursor =
-    hits.length > 0 && INTERACTIVE_MESH_NAMES.has(hits[0].object.name)
-      ? "pointer"
-      : hits.length > 0
-        ? "grab"
-        : "";
+  _mouseX = e.clientX;
+  _mouseY = e.clientY;
 });
 
 // ── Top-bar audio toggle ─────────────────────────────────
