@@ -687,25 +687,39 @@ themeBtn.addEventListener("click", () => {
   applyTheme(currentTheme === "light" ? "dark" : "light");
 });
 
+let _savedScrollY = 0; // scroll position held while explore mode is active
+
 function setMode(mode) {
   const next = mode === "explore";
   if (next === interactiveMode) return;
   interactiveMode = next;
-  document.body.classList.toggle("is-interactive", interactiveMode);
-  modeOptions.forEach((opt) =>
-    opt.classList.toggle("is-active", opt.dataset.mode === mode),
-  );
+
   if (interactiveMode) {
-    // Snap to clean front pose when entering explore mode
+    // ── Entering explore ────────────────────────────────────
+    // Freeze the viewport before toggling the class so scrollY is still valid.
+    _savedScrollY = window.scrollY;
+    // Lock scroll on <html> too — body-only overflow:hidden can still scroll
+    // in some browsers when the scroll root is the document element.
+    document.documentElement.style.overflow = "hidden";
+    document.body.classList.add("is-interactive");
+    // Snap device to neutral front pose
     exploreYaw   = 0;
     explorePitch = 0;
   } else {
-    // Reset cursor and device state when leaving explore mode.
-    // transitionState(IDLE) is a no-op if device was never used — so audio
-    // started from the topbar toggle is unaffected.
+    // ── Leaving explore ─────────────────────────────────────
+    document.body.classList.remove("is-interactive");
+    document.documentElement.style.overflow = "";
+    // Restore the exact scroll position the user was at before exploring,
+    // then sync scrollProgress so the camera snaps back correctly.
+    window.scrollTo(0, _savedScrollY);
+    readScroll();
     canvas.style.cursor = "";
     transitionState(DS.IDLE);
   }
+
+  modeOptions.forEach((opt) =>
+    opt.classList.toggle("is-active", opt.dataset.mode === mode),
+  );
 }
 
 modeOptions.forEach((opt) =>
