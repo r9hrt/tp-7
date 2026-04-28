@@ -83,10 +83,6 @@ const renderer = new THREE.WebGLRenderer({
   antialias: true,
   alpha: true,
   powerPreference: "high-performance",
-  // Required for gl.readPixels() to work outside the exact RAF frame that
-  // rendered the scene. Prevents Chrome from discarding the framebuffer
-  // after frame presentation. Negligible perf cost on modern GPUs.
-  preserveDrawingBuffer: true,
 });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -232,10 +228,6 @@ function applyTheme(theme) {
   const themeLabel = themeBtn.querySelector(".topbar__toggle-label");
   if (themeLabel) themeLabel.textContent = theme === "light" ? "dark" : "light";
 
-  // Reset contrast sampling so the new theme gets a fresh read
-  sections.forEach((s) => { delete s.dataset.textContrast; });
-  contrastTargetSection  = null;
-  contrastPendingFrames = -1;
 }
 
 const gltfLoader = new GLTFLoader();
@@ -290,6 +282,36 @@ gltfLoader.load(
     reelGroup = model.getObjectByName("Cylinder009");
 
     modelGroup.add(pivot);
+
+    // ── Bounding-box corners for clip-path projection ─────────────
+    // Scroll is locked to 0 during the loading screen, so modelGroup.rotation
+    // is still (0,0,0) here and matrixWorld ≈ identity. The bbox from
+    // setFromObject is therefore in modelGroup-local space. Each frame,
+    // applyMatrix4(modelGroup.matrixWorld) rotates the corners to world space,
+    // then project(camera) gives NDC — no per-frame vertex traversal needed.
+    modelGroup.updateMatrixWorld(true);
+    const _loadBBox = new THREE.Box3().setFromObject(modelGroup);
+    const _lmin = _loadBBox.min, _lmax = _loadBBox.max;
+    deviceBBoxCorners = [
+      new THREE.Vector3(_lmin.x, _lmin.y, _lmin.z),
+      new THREE.Vector3(_lmax.x, _lmin.y, _lmin.z),
+      new THREE.Vector3(_lmin.x, _lmax.y, _lmin.z),
+      new THREE.Vector3(_lmax.x, _lmax.y, _lmin.z),
+      new THREE.Vector3(_lmin.x, _lmin.y, _lmax.z),
+      new THREE.Vector3(_lmax.x, _lmin.y, _lmax.z),
+      new THREE.Vector3(_lmin.x, _lmax.y, _lmax.z),
+      new THREE.Vector3(_lmax.x, _lmax.y, _lmax.z),
+    ];
+
+    // Stamp data-text on all narrative text nodes — the ::after pseudo-element
+    // reads this via content: attr(data-text) to render an identical white
+    // overlay, clipped to the device footprint above.
+    sections.forEach((s) => {
+      s.querySelectorAll(".title, .tagline, .body").forEach((el) => {
+        el.dataset.text = el.textContent.trim();
+      });
+    });
+
     finishLoading();
   },
   (xhr) => {
@@ -414,45 +436,42 @@ const currentCamLook = new THREE.Vector3().copy(keyframes[0].camLook);
 const currentRot     = new THREE.Euler().copy(keyframes[0].rot);
 const LERP = 0.07;
 
-// ── Text contrast sampling (light mode) ─────────────────
-// mix-blend-mode: difference can't read WebGL canvas pixels in Chrome's GPU
-// compositor. Instead, we read pixels directly from the WebGL framebuffer
-// right after renderer.render() (buffer is valid in the same RAF).
-// One GPU→CPU sync per section change (not per frame) — negligible cost.
-let contrastPendingFrames = -1; // ≥1 → counting down; 0 → fire read
-let contrastTargetSection  = null;
+// ── Text contrast via 3D bounding-box clip-path (light mode) ────
+// Each frame, project the device's AABB corners (stored in modelGroup-local
+// space at load time, when matrixWorld ≈ identity) through the current camera
+// to get a 2D screen footprint. A CSS clip-path on each [data-text]::after
+// shows white text ONLY over the dark device — no GPU→CPU readback needed.
+let deviceBBoxCorners = null; // [Vector3 × 8] in modelGroup-local space
+const _projV = new THREE.Vector3(); // scratch, reused each frame
 
-function sampleTextContrast(section) {
-  if (!section || currentTheme !== "light") return;
-  const title = section.querySelector(".title");
-  if (!title) return;
-
-  const rect = title.getBoundingClientRect();
-  const gl   = renderer.getContext();
-  const dpr  = renderer.getPixelRatio();
-  const buf  = new Uint8Array(4);
-  let dark   = 0;
-
-  // 7 evenly-spaced samples across the full title width
-  for (let i = 0; i < 7; i++) {
-    const xCss = rect.left + rect.width * ((i + 0.5) / 7);
-    const yCss = rect.top  + rect.height * 0.5;
-    if (xCss < 0 || xCss > window.innerWidth) continue;
-
-    const px = Math.round(xCss * dpr);
-    const py = Math.round((window.innerHeight - yCss) * dpr); // WebGL Y is flipped
-
-    gl.readPixels(px, py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, buf);
-
-    // buf[3] > 10 → device pixel present (not transparent CSS background)
-    if (buf[3] > 10) {
-      const lum = 0.2126 * buf[0] / 255 + 0.7152 * buf[1] / 255 + 0.0722 * buf[2] / 255;
-      if (lum < 0.35) dark++;
-    }
+function updateDeviceClip() {
+  if (currentTheme !== "light" || !deviceBBoxCorners) return;
+  const hw = window.innerWidth  * 0.5;
+  const hh = window.innerHeight * 0.5;
+  let minX =  Infinity, maxX = -Infinity;
+  let minY =  Infinity, maxY = -Infinity;
+  for (const corner of deviceBBoxCorners) {
+    _projV.copy(corner).applyMatrix4(modelGroup.matrixWorld).project(camera);
+    const sx =  _projV.x * hw + hw;
+    const sy = -_projV.y * hh + hh;
+    minX = Math.min(minX, sx); maxX = Math.max(maxX, sx);
+    minY = Math.min(minY, sy); maxY = Math.max(maxY, sy);
   }
-
-  // ≥3 of 7 samples over dark device → white text
-  section.dataset.textContrast = dark >= 3 ? "light" : "dark";
+  sections.forEach((section) => {
+    if (!section.classList.contains("is-active")) return;
+    section.querySelectorAll("[data-text]").forEach((el) => {
+      const rect = el.getBoundingClientRect();
+      // inset(top right bottom left): positive = clip that many px from that edge
+      const clipL = Math.max(0, minX - rect.left).toFixed(1);
+      const clipR = Math.max(0, rect.right  - maxX).toFixed(1);
+      const clipT = Math.max(0, minY - rect.top).toFixed(1);
+      const clipB = Math.max(0, rect.bottom - maxY).toFixed(1);
+      el.style.setProperty(
+        "--device-clip",
+        `inset(${clipT}px ${clipR}px ${clipB}px ${clipL}px)`,
+      );
+    });
+  });
 }
 
 // ── Interactive (explore) mode ──────────────────────────
@@ -627,24 +646,8 @@ function tick() {
   updateSections(scrollProgress);
   updateProgressBar(scrollProgress);
 
-  // Schedule contrast read when the active section changes (light mode only)
-  if (currentTheme === "light") {
-    const active = sections.find((s) => s.classList.contains("is-active")) ?? null;
-    if (active !== contrastTargetSection) {
-      contrastTargetSection  = active;
-      contrastPendingFrames = 20; // ~0.33 s — enough for camera to settle
-    }
-    if (contrastPendingFrames > 0) contrastPendingFrames--;
-  }
-
   renderer.render(scene, camera);
-
-  // Fire the deferred pixel read in the same RAF so the framebuffer is valid
-  // (preserveDrawingBuffer is false — buffer is undefined after this RAF ends)
-  if (contrastPendingFrames === 0) {
-    contrastPendingFrames = -1;
-    sampleTextContrast(contrastTargetSection);
-  }
+  updateDeviceClip();
 
   requestAnimationFrame(tick);
 }
