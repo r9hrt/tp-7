@@ -540,31 +540,26 @@ body.is-interactive .explore-hint {
 }
 
 /* ── Light-mode text legibility over dark device ─────── */
-/* In light mode the device is crushed to near-black. Dark page text
-   disappears where it overlaps. Multiple cream-halo layers create enough
-   contrast to lift the text off the device surface without inverting color. */
+/* The device is crushed to near-black in light mode, so dark text
+   disappears where it overlaps. A thin cream stroke around each glyph
+   (paint-order: stroke fill keeps the fill clean on top) creates a
+   precise boundary without any glow or bloom. Body text uses a single
+   tight shadow instead — stroke at small sizes reads as extra weight. */
 [data-theme="light"] .title,
 [data-theme="light"] .title--md,
 [data-theme="light"] .title--lg {
-  text-shadow:
-    0 0 16px rgba(241, 237, 230, 1),
-    0 0 36px rgba(241, 237, 230, 1),
-    0 0 72px rgba(241, 237, 230, 0.95),
-    0 0 120px rgba(241, 237, 230, 0.8);
+  -webkit-text-stroke: 2.5px rgba(241, 237, 230, 0.82);
+  paint-order: stroke fill;
+  text-shadow: none;
 }
 
 [data-theme="light"] .body,
 [data-theme="light"] .tagline {
-  text-shadow:
-    0 0 10px rgba(241, 237, 230, 1),
-    0 0 24px rgba(241, 237, 230, 0.95),
-    0 0 48px rgba(241, 237, 230, 0.8);
+  text-shadow: 0 0 7px rgba(241, 237, 230, 1);
 }
 
 [data-theme="light"] .eyebrow {
-  text-shadow:
-    0 0 8px rgba(241, 237, 230, 1),
-    0 0 20px rgba(241, 237, 230, 0.9);
+  text-shadow: 0 0 5px rgba(241, 237, 230, 0.9);
 }
 
 /* ── Reduced motion ───────────────────────────────────── */
